@@ -1,0 +1,14 @@
+# config.yml
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true         # 启用删除功能
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
