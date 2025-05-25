@@ -27,7 +27,7 @@ services:
 
 
   registry-ui:
-    image: klausmeyer/docker-registry-browser
+    image: klausmeyer/docker-registry-browser:latest
     container_name: registry-ui
     restart: always
     ports:
