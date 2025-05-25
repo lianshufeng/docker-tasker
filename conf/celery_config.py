@@ -4,7 +4,7 @@
 broker_url = 'redis://:xiaofengfeng@redis:6379/0'
 
 # 可选：用于存储任务执行结果
-result_backend = 'redis://:xiaofengfeng@redis:6379/1'
+result_backend = 'redis://:xiaofengfeng@redis:6379/0'
 
 # 其他常见配置（可选）
 task_serializer = 'json'

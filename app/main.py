@@ -12,7 +12,7 @@ app = FastAPI(title="分布式任务接口文档")
 
 @app.post("/api/add", tags=["task"])
 def add_task(data: dict = Body(..., example={
-    "image": "registry:5000/python:3.13-slim",
+    "image": "192.168.31.98:5000/python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123)"],
     "max_retries": 1,
     "retry_delay": 5
