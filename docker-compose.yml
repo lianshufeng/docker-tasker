@@ -1,32 +1,33 @@
 services:
 
-
   api:
-    build: ./app
+    image: tasker:latest
     volumes:
-      - ./app:/app
+      - ./conf:/app/conf
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "5000:5000"
-    depends_on:
-      - redis
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - "8000:8000"
+    command: python -m app.main
+    restart: always
+
 
   worker:
-    build: ./app
+    image: tasker:latest
+    environment:
+      DOCKER_REGISTRIES: 192.168.31.98:5000
+      DOCKER_USERNAME: admin
+      DOCKER_PASSWORD: xiaofengfeng
     volumes:
-      - ./app:/app
-    depends_on:
-      - redis
-    command: celery -A tasks worker --loglevel=info
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - ./conf:/app/conf
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1
+    restart: always
 
-  flower:
-    image: mher/flower
-    ports:
-      - "5555:5555"
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-    depends_on:
-      - redis
+#  flower:
+#    image: mher/flower
+#    ports:
+#      - "5555:5555"
+#    environment:
+#      - CELERY_BROKER_URL=redis://redis:6379/0
+#    depends_on:
+#      - redis

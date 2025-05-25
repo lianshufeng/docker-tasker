@@ -1,0 +1,1 @@
+docker run --rm --entrypoint htpasswd httpd:2 -Bbn admin xiaofengfeng  > htpasswd

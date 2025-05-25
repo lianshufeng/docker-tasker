@@ -12,18 +12,28 @@ app = FastAPI(title="分布式任务接口文档")
 
 @app.post("/api/add", tags=["task"])
 def add_task(data: dict = Body(..., example={
-    "image": "python:3.13-slim",
+    "image": "registry:5000/python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123)"],
-    "max_retries": 3
+    "max_retries": 1,
+    "retry_delay": 5
+
 })):
     image = data.get('image')
     command = data.get('command')
     max_retries = data.get('max_retries', 3)
+    retry_delay = data.get('max_retries', 5)
 
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
 
-    task = run_docker_task.apply_async(kwargs={"image": image, "command": command}, retry=True, max_retries=max_retries)
+    task = run_docker_task.apply_async(kwargs={
+        "image": image,
+        "command": command,
+        "max_retries": max_retries,
+        "retry_delay": retry_delay,
+    }, retry=True, max_retries=max_retries
+
+    )
     return {"task_id": task.id}
 
 
