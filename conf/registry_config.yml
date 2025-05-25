@@ -9,7 +9,7 @@ storage:
   delete:
     enabled: true         # 启用删除功能
 http:
-  addr: :5000
+  addr: 0.0.0.0:5000
   headers:
     X-Content-Type-Options: [nosniff]
 
