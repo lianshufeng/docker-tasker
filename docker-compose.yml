@@ -1,7 +1,7 @@
 services:
 
   api:
-    image: tasker:latest
+    image: lianshufeng/tasker:latest
     volumes:
       - ./conf:/app/conf
       - /var/run/docker.sock:/var/run/docker.sock
@@ -12,7 +12,7 @@ services:
 
 
   worker:
-    image: tasker:latest
+    image: lianshufeng/tasker:latest
     environment:
       DOCKER_REGISTRIES: ${docker_registries} #work启动登录到镜像(私服)地址
       DOCKER_USERNAME: ${docker_username}
