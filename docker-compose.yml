@@ -3,7 +3,7 @@ services:
   api:
     image: lianshufeng/tasker:latest
     volumes:
-      - ./conf:/app/conf
+      - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8000:8000"
@@ -18,7 +18,7 @@ services:
       DOCKER_USERNAME: ${docker_username}
       DOCKER_PASSWORD: ${docker_password}
     volumes:
-      - ./conf:/app/conf
+      - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
       - /var/run/docker.sock:/var/run/docker.sock
     command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1
     restart: always
