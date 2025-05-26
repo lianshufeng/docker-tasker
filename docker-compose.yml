@@ -33,7 +33,7 @@ services:
       - "9808:9808"
     environment:
       - CE_BROKER_URL=redis://:${redis_password}@redis:6379/0
-      - CE_RESULT_BACKEND=redis://:${redis_password}@redis:6379/1
+      - CE_RESULT_BACKEND=redis://:${redis_password}@redis:6379/0
     restart: always
   prometheus:
     image: prom/prometheus:latest #v3.4.0
