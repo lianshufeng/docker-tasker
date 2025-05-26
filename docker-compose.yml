@@ -11,7 +11,7 @@ services:
     restart: always
 
 
-  worker:
+  worker1:
     image: lianshufeng/tasker:latest
     environment:
       DOCKER_REGISTRIES: ${docker_registries} #work启动登录到镜像(私服)地址
@@ -20,10 +20,23 @@ services:
     volumes:
       - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
       - /var/run/docker.sock:/var/run/docker.sock
-    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1
+    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1  -Q celery
     restart: always
     deploy:
-      replicas: 3 # 副本数量为3
+      replicas: 1 # 副本数量为
+  worker2:
+    image: lianshufeng/tasker:latest
+    environment:
+      DOCKER_REGISTRIES: ${docker_registries} #work启动登录到镜像(私服)地址
+      DOCKER_USERNAME: ${docker_username}
+      DOCKER_PASSWORD: ${docker_password}
+    volumes:
+      - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1  -Q celery,test
+    restart: always
+    deploy:
+      replicas: 2 # 副本数量为
 
 
   celery-exporter:

@@ -14,14 +14,19 @@ app = FastAPI(title="分布式任务接口文档")
 def add_task(data: dict = Body(..., example={
     "image": "192.168.31.98:5000/python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123)"],
+    "queue": "celery",
     "max_retries": 1,
-    "retry_delay": 5
-
+    "retry_delay": 5,
+    "countdown": 3,
+    "expires": 60 * 60 * 2
 })):
     image = data.get('image')
     command = data.get('command')
-    max_retries = data.get('max_retries', 3)
-    retry_delay = data.get('max_retries', 5)
+    max_retries = data.get('max_retries', 1)  # 最大重试次数
+    retry_delay = data.get('retry_delay', 5)  # 重试延迟
+    queue = data.get('queue', "celery")  # 默认队列名
+    countdown = data.get('countdown', None)  # 倒计时执行 (秒)
+    expires = data.get('expires', None)  # 过期时间 (秒)
 
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
@@ -31,8 +36,12 @@ def add_task(data: dict = Body(..., example={
         "command": command,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
-    }, retry=True, max_retries=max_retries
-
+    },
+        retry=True,
+        max_retries=max_retries,
+        queue=queue,  # 队列名
+        countdown=countdown,
+        expires=expires,
     )
     return {"task_id": task.id}
 

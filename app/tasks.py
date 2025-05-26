@@ -1,82 +1,110 @@
 import os
 import time
+import logging
 import traceback
 
 import docker
 from celery import Celery
-from docker.errors import ImageNotFound, ContainerError, APIError
+from docker.errors import ImageNotFound
+from kombu import Exchange, Queue
 
+# 日志配置，建议你根据生产环境实际需要调整
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Celery app 初始化
 app = Celery('tasks')
 app.config_from_object('conf.celery_config')
 
-client = docker.from_env()
+# Docker client，模块级单例
+docker_client = docker.from_env()
 
 
-def config():
-    return app.conf
+def docker_login():
+    """
+    登录到 Docker Registry，仅在 worker 启动时调用一次即可。
+    支持多个 registry，使用逗号分隔。
+    """
+    docker_registry_list = os.getenv('DOCKER_REGISTRIES', 'https://index.docker.io/v1').split(',')
+    docker_username = os.getenv('DOCKER_USERNAME', None)
+    docker_password = os.getenv('DOCKER_PASSWORD', None)
+    if docker_username and docker_password:
+        for registry in docker_registry_list:
+            try:
+                docker_client.login(username=docker_username, password=docker_password, registry=registry)
+                logger.info(f"Successfully logged into Docker registry: {registry}")
+            except docker.errors.APIError as e:
+                logger.error(f"Failed to login to Docker registry {registry}: {e}")
 
+# worker 启动时只调用一次
+docker_login()
 
 @app.task(bind=True)
 def run_docker_task(self,
-                    image: str,  # Docker 镜像的名称，可以是公共或私有镜像的地址
-                    command: list,  # 要在容器中执行的命令及其参数，列表形式
-                    max_retries: int = 0,  # 最大重试次数，如果任务失败会尝试重试。默认为 0 表示不重试
-                    retry_delay: int = 5):  # 重试的时间间隔，单位为秒。默认为 5 秒
-    container = None  # 定义在外部，用于 finally 中访问
-
+                    image: str,      # Docker 镜像名
+                    command: list,   # 容器中执行的命令
+                    max_retries: int = 0,
+                    retry_delay: int = 5):
+    """
+    在 Docker 容器中运行指定命令，支持失败重试。
+    """
+    container = None
     attempt = self.request.retries + 1
-
-    # 取出首位空
     image = image.strip()
 
     try:
-        # 拉取镜像
+        # 检查并拉取镜像
         try:
-            client.images.get(image)
-        except docker.errors.ImageNotFound:
-            client.images.pull(image)
+            docker_client.images.get(image)
+            logger.info(f"Image {image} found locally.")
+        except ImageNotFound:
+            logger.info(f"Image {image} not found locally. Pulling...")
+            docker_client.images.pull(image)
+            logger.info(f"Image {image} pulled successfully.")
 
-
-        # 使用 create 创建容器，不启动容器
-        container = client.containers.create(
+        # 创建并启动容器
+        container = docker_client.containers.create(
             image=image,
             command=command,
-            detach=True
+            detach=True,
+            # 你可以按需增加资源限制参数，例如：
+            # mem_limit='1g', cpu_quota=50000
         )
-        print(f"Container {container.id} created successfully")
-        # 启动容器
+        logger.info(f"Container {container.id} created successfully for image {image}.")
         container.start()
+        logger.info(f"Container {container.id} started.")
 
-        # 等待执行完毕
-        container.wait()
-        # 获取日志
+        # 等待执行完成
+        exit_result = container.wait()
         logs = container.logs(stdout=True, stderr=True).decode("utf-8")
+        logger.info(f"[TASK {self.request.id}] Docker output:\n{logs}")
 
-
-        print(f"[TASK {self.request.id}] output:\n{logs}")
-
-        # 解析结果
+        # 解析输出结果
         if "===result-data===" in logs:
             result = logs.split("===result-data===")[-1].strip()
+        elif logs.strip():
+            result = logs.strip().splitlines()[-1]
         else:
-            result = logs.strip().splitlines()[-1] if logs.strip() else ""
+            result = ""
 
+        # 可根据 exit_result 判断是否成功，也可以返回日志内容
         return {
-            "success": True,
+            "success": exit_result.get("StatusCode", 1) == 0,
             "attempt": attempt,
-            "result": result
+            "result": result,
+            "status_code": exit_result.get("StatusCode")
         }
 
     except Exception as e:
+        logger.warning(f"[TASK {self.request.id}] Exception on attempt {attempt}: {e}")
         if attempt <= max_retries:
-            time.sleep(retry_delay)
-            return run_docker_task.apply(
-                args=[image, command],
-                kwargs={"max_retries": max_retries, "retry_delay": retry_delay},
-                task_id=self.request.id,
-                retries=attempt
-            )
+            # Celery 原生 retry，保证状态和 trace
+            raise self.retry(exc=e, countdown=retry_delay, max_retries=max_retries)
         else:
+            logger.error(f"[TASK {self.request.id}] Failed after {attempt} attempts: {e}")
             return {
                 "success": False,
                 "attempt": attempt,
@@ -85,30 +113,11 @@ def run_docker_task(self,
             }
 
     finally:
-        # 保证容器清理
+        # 强制清理容器
         if container is not None:
             try:
                 container.remove(force=True)
+                logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
-                print(f"[WARN] 清理容器失败: {cleanup_error}")
+                logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
 
-
-# 登录到 Docker Registry
-def docker_login():
-    # 获取多个 Docker Registry 的信息，假设每个 registry 信息以逗号分隔
-    docker_registry_list = os.getenv('DOCKER_REGISTRIES', 'https://index.docker.io/v1').split(',')
-    docker_username = os.getenv('DOCKER_USERNAME', None)  # Docker 用户名
-    docker_password = os.getenv('DOCKER_PASSWORD', None)  # Docker 密码
-
-    # 确保用户名和密码存在
-    if docker_username and docker_password:
-        for registry in docker_registry_list:
-            try:
-                # 登录到每个指定的 Docker Registry
-                client.login(username=docker_username, password=docker_password, registry=registry)
-                print(f"Successfully logged into Docker registry: {registry}")
-            except docker.errors.APIError as e:
-                print(f"Failed to login to Docker registry {registry}: {e}")
-
-
-docker_login()
