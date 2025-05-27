@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import logging
 import traceback
@@ -83,8 +84,12 @@ def run_docker_task(self,
         logger.info(f"[TASK {self.request.id}] Docker output:\n{logs}")
 
         # 解析输出结果
-        if "===result-data===" in logs:
-            result = logs.split("===result-data===")[-1].strip()
+        result = ""
+        # 用正则查找所有 ===result-data===...===result-data=== 中间内容，支持多组
+        matches = re.findall(r"===result-data===\s*([\s\S]*?)\s*===result-data===", logs)
+        if matches:
+            # 可以返回所有，或者只返回第一个数据块
+            result = "\n\n".join(m.strip() for m in matches if m.strip())
         elif logs.strip():
             result = logs.strip().splitlines()[-1]
         else:
