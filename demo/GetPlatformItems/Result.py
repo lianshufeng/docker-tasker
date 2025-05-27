@@ -23,6 +23,9 @@ class Result(BaseModel):
 
     # 打印到控制台
     def print(self, big_data: bool = False):
-        if big_data:
-            print("===result-data===")
-        print(self.model_dump_json(exclude_none=True))
+        ret: str = f"""
+===result-data===
+{self.model_dump_json(exclude_none=True)}
+===result-data===
+"""
+        print(ret)

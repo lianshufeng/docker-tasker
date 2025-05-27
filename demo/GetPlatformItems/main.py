@@ -1,20 +1,22 @@
+import asyncio
+
 from Result import Result, Item
 from config import _parse_args
-from platform import PlatformAction, DouyinPlatformAction, KuaishouPlatformAction
+from platforms import PlatformAction, DouyinPlatformAction, KuaishouPlatformAction
 
 _config = _parse_args()
 
 
-
-if __name__ == '__main__':
-
+async def main():
     # 平台名
-    platform_name: str = _config.get("p")
+    platform_name: str = _config.get("p", "douyin")
     # 关键词
-    keyword: str = _config.get("k")
+    keyword: str | None = _config.get("k", None)
+    if keyword is None:
+        raise RuntimeError("关键词参数不能为空")
 
     # 平台执行器
-    platform_action: PlatformAction = None
+    platform_action: PlatformAction | None = None
     if platform_name == 'douyin':
         platform_action = DouyinPlatformAction()
     elif platform_name == 'kuaishou':
@@ -24,6 +26,10 @@ if __name__ == '__main__':
         Result(success=False, msg=f"不支持的平台:{platform_name}").print()
     else:
         items: list[Item] = []
-        for it in platform_action.action(keyword=keyword):
+        for it in await platform_action.action(keyword=keyword):
             items.append(Item(title=it["title"], url=it["url"]))
         Result(success=True, items=items).print()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

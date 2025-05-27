@@ -10,6 +10,6 @@ def _parse_args() -> dict:
                         help="平台名: douyin/kuaishou")
 
     # 关键词
-    parser.add_argument("-k", type=str, default="", help="关键词")
+    parser.add_argument("-k", type=str, default=None, help="关键词", required=True)
 
     return parser.parse_args().__dict__
