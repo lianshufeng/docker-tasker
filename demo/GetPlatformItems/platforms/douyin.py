@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from typing import Any
 
 from pyppeteer import launch
@@ -15,8 +16,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-width = 1280
-height = 800
+width = 800
+height = 600
 
 
 # 异步执行，发现就关闭登录面板
@@ -93,15 +94,19 @@ class DouyinPlatformAction(PlatformAction):
             await asyncio.sleep(1)
 
         # 选择过滤时间------------------------------
-        where_btn = await page.waitForXPath('//*[@id="search-content-area"]/div/div[1]/div[1]/div/div/div/div/span',
-                                            timeout=3000)
+        where_btn: ElementHandle = await page.waitForXPath(
+            '//*[@id="search-content-area"]/div/div[1]/div[1]/div/div/div/div/span',
+            timeout=3000)
         if where_btn:
             logger.info("触发筛选按钮")
-            await page.evaluate('el => {'
-                                'el.dispatchEvent(new MouseEvent("mouseenter", {bubbles: true}));'
-                                'el.dispatchEvent(new MouseEvent("mouseover", {bubbles: true}));'
-                                'el.dispatchEvent(new MouseEvent("mousemove", {bubbles: true}));'
-                                '}', where_btn)
+
+            # await page.evaluate('el => {'
+            #                     'el.dispatchEvent(new MouseEvent("mouseenter", {bubbles: true}));'
+            #                     'el.dispatchEvent(new MouseEvent("mouseover", {bubbles: true}));'
+            #                     'el.dispatchEvent(new MouseEvent("mousemove", {bubbles: true}));'
+            #                     '}', where_btn)
+
+            await where_btn.hover()
             await asyncio.sleep(1)
 
             # 过滤最近一周
@@ -116,11 +121,15 @@ class DouyinPlatformAction(PlatformAction):
             await where_btn.click()
 
         # 找到列表项
-        scroll_list_element = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=3000)
+        scroll_list_element: ElementHandle = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=3000)
         if scroll_list_element:
-            # 点击空白局域让他获取焦点
-            await (
-                await page.waitForXPath('//*[@id="search-content-area"]/div/div[2]/div/div[2]/p', timeout=3000)).click()
+
+            # 模拟点击空白处，获取焦点
+            scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
+            x = scroll_list_element_content['x'] - random.randint(10, 20)
+            y = scroll_list_element_content['y'] + random.randint(10, 30)
+            await  page.mouse.click(x=x, y=y)
+
             # 记录当前加载项
             latest_li_len: int = len(await scroll_list_element.querySelectorAll('li'))
 
@@ -138,7 +147,6 @@ class DouyinPlatformAction(PlatformAction):
                         break
                 latest_li_len = now_li_len
                 logger.info('load items : ' + str(latest_li_len))
-
 
             # 开始取出所有的标题与url
             li_elements: list[ElementHandle] = await scroll_list_element.querySelectorAll('li')
