@@ -25,10 +25,14 @@ async def main():
     if platform_action is None:
         Result(success=False, msg=f"不支持的平台:{platform_name}").print()
     else:
-        items: list[Item] = []
-        for it in await platform_action.action(keyword=keyword):
-            items.append(Item(title=it["title"], url=it["url"]))
-        Result(success=True, items=items).print()
+
+        try:
+            items: list[Item] = []
+            for it in await platform_action.action(keyword=keyword):
+                items.append(Item(title=it["title"], url=it["url"]))
+            Result(success=True, items=items).print()
+        except Exception as e:
+            Result(success=False, msg=f"调用接口出现异常").print()
 
 
 if __name__ == '__main__':

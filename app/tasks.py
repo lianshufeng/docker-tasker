@@ -1,13 +1,11 @@
+import logging
 import os
 import re
-import time
-import logging
 import traceback
 
 import docker
 from celery import Celery
 from docker.errors import ImageNotFound
-from kombu import Exchange, Queue
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
