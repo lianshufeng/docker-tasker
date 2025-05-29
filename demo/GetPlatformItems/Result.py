@@ -21,6 +21,9 @@ class Result(BaseModel):
     # items
     items: List[Item] = None
 
+    # cookies
+    cookies: str = None
+
     # 打印到控制台
     def print(self, big_data: bool = False):
         ret: str = f"""

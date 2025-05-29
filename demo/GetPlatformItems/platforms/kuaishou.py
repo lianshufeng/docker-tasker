@@ -1,9 +1,7 @@
-from typing import Any
-
-from .base import PlatformAction
+from .base import PlatformAction, ActionResult
 
 
 class KuaishouPlatformAction(PlatformAction):
 
-    async def action(self, keyword: str)->list[dict[str, Any]]:
-        return []
+    async def action(self, keyword: str, cookies: str = None) -> ActionResult:
+        return ActionResult()

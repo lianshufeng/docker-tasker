@@ -1,6 +1,7 @@
-__all__ = ['PlatformAction', 'DouyinPlatformAction', 'KuaishouPlatformAction']
+__all__ = ['PlatformAction', 'DouyinPlatformAction', 'KuaishouPlatformAction',
+           'ActionResult','ActionResultItem'
+           ]
 
+from .base import PlatformAction, ActionResult, ActionResultItem
 from .douyin import DouyinPlatformAction
 from .kuaishou import KuaishouPlatformAction
-
-from .base import PlatformAction

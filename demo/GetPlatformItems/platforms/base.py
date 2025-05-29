@@ -1,7 +1,6 @@
 import os
 import shutil
 import sys
-from typing import Any
 
 from pydantic import BaseModel
 
@@ -41,8 +40,19 @@ def getChromeExecutablePath() -> list[str]:
     return list(dict.fromkeys(chrome_paths))
 
 
+class ActionResultItem(BaseModel):
+    title: str
+    url: str
+
+
+class ActionResult(BaseModel):
+    cookies: str = None
+
+    items: list[ActionResultItem] = None
+
+
 class PlatformAction(BaseModel):
 
     # 执行任务
-    async def action(self, keyword: str) -> list[dict[str, Any]]:
+    async def action(self, keyword: str, cookies: str = None) -> ActionResult:
         pass
