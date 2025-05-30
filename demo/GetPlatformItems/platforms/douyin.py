@@ -1,10 +1,8 @@
 import asyncio
 import logging
-import os
 import random
-import time
+import traceback
 
-import pyautogui
 from pyppeteer import launch
 from pyppeteer.browser import Browser
 from pyppeteer.element_handle import ElementHandle
@@ -25,26 +23,24 @@ height = 600
 douyin_page_home = 'https://www.douyin.com'
 
 
-
-async def cancel_xdg_open_button():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    img_path = os.path.join(script_dir, 'images', 'cancel_xdg_open_button.png')
-    while True:
-        try:
-            location = pyautogui.locateOnScreen(img_path, confidence=0.85)  # 可调整置信度
-            if location:
-                x, y = pyautogui.center(location)
-                pyautogui.moveTo(x, y, duration=0.1)
-                pyautogui.click()
-                print(f"已自动点击 '取消' 按钮，位置: ({x}, {y})")
-                await asyncio.sleep(1)  # 点过后休息1秒，防止连点
-            else:
-                await asyncio.sleep(0.2)  # 没找到就快速重试
-        except Exception as e:
-            pass
-        finally:
-            await asyncio.sleep(0.2)
-
+# async def cancel_xdg_open_button():
+#     script_dir = os.path.dirname(os.path.abspath(__file__))
+#     img_path = os.path.join(script_dir, 'images', 'cancel_xdg_open_button.png')
+#     while True:
+#         try:
+#             location = pyautogui.locateOnScreen(img_path, confidence=0.85)  # 可调整置信度
+#             if location:
+#                 x, y = pyautogui.center(location)
+#                 pyautogui.moveTo(x, y, duration=0.1)
+#                 pyautogui.click()
+#                 print(f"已自动点击 '取消' 按钮，位置: ({x}, {y})")
+#                 await asyncio.sleep(1)  # 点过后休息1秒，防止连点
+#             else:
+#                 await asyncio.sleep(0.2)  # 没找到就快速重试
+#         except Exception as e:
+#             pass
+#         finally:
+#             await asyncio.sleep(0.2)
 
 
 # 异步执行，发现就关闭登录面板
@@ -75,7 +71,13 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
     # 打开新的页面
     await page.goto(douyin_page_home)
 
-    # 开启一定有一个登录弹窗，如果这个窗口不关闭后面的任务执行不完成，所以在这里阻塞直到结束
+    # 等待关闭登录窗口后延迟2秒，防止linux下弹窗
+    await close_login_panel(page, True)
+    await asyncio.sleep(2)
+    await page.goto('about:blank')
+
+    # 退回去
+    await page.goBack()
     await close_login_panel(page, True)
 
     # 异步线程关闭黄口
@@ -93,16 +95,16 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
 
     # 选择仅过滤视频列表------------------------------
     video_btn = await page.waitForXPath('//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/span[2]',
-                                        timeout=5000)
+                                        timeout=10000)
     if video_btn:
         logger.info("选择仅过滤视频")
         await video_btn.click()
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
     # 选择过滤时间------------------------------
     where_btn: ElementHandle = await page.waitForXPath(
         '//*[@id="search-content-area"]/div/div[1]/div[1]/div/div/div/div/span',
-        timeout=3000)
+        timeout=10000)
     if where_btn:
         logger.info("触发筛选按钮")
 
@@ -113,22 +115,26 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
         #                     '}', where_btn)
 
         await where_btn.hover()
-        await asyncio.sleep(1)
+        await asyncio.sleep(1.3)
 
         # 过滤最近一周
         week_btn = await page.waitForXPath(
-            '//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/span[2]', timeout=3000)
+            '//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/span[2]', timeout=10000)
         if week_btn:
             logger.info("过滤最近1天视频")
             await week_btn.click()
-            await asyncio.sleep(1)
+            await asyncio.sleep(1.3)
 
         # 隐藏筛选弹窗
         await where_btn.click()
 
     # 找到列表项
-    scroll_list_element: ElementHandle = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=3000)
+    scroll_list_element: ElementHandle = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
     if scroll_list_element:
+
+        # 延迟处理，防止没有获取边界
+        while await scroll_list_element.boxModel() is None:
+            await asyncio.sleep(0.1)
 
         # 模拟点击空白处，获取焦点
         scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
@@ -166,8 +172,6 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
                     href = await page.evaluate('(element) => element.href', a_element)
 
                     # 标题
-                    # title_element = await a_element.querySelector('div > div:nth-child(2) > div > div:nth-child(1)')
-                    # title = await page.evaluate('(element) => element.textContent', title_element)
                     title_element: ElementHandle = (await a_element.querySelectorAll("div"))[15]
                     title = await page.evaluate('(element) => element.textContent', title_element)
                     logger.info(f"{title} -> {href}")
@@ -187,11 +191,8 @@ class DouyinPlatformAction(PlatformAction):
 
     async def action(self, keyword: str, cookies: str = None) -> ActionResult:
 
-
         # 异步xdg_窗口
-        asyncio.create_task(cancel_xdg_open_button())
-
-
+        # asyncio.create_task(cancel_xdg_open_button())
 
         chrome: list[str] = getChromeExecutablePath()
         chrome_path = chrome[0] if chrome else None
@@ -207,14 +208,16 @@ class DouyinPlatformAction(PlatformAction):
             args=[
                 '--incognito',  # 无痕
                 '--disable-infobars',  # 取消提示正在被受控制
-                '--disable-blink-features=AutomationControlled',
+                '--no-first-run',  # 跳过首次运行时的欢迎界面和介绍。
+                '--no-default-browser-check',  # 启动时不询问是否将 Chrome 设置为默认浏览器。
                 f'--window-size={width},{height}',  # 这里设置窗口分辨率
                 '--window-position=0,0',  # 这里指定窗口起始坐标
             ],
             ignoreDefaultArgs=['--enable-automation'],  # 隐藏提示栏
         )
-        page: Page = await browser.newPage()
 
+        page: Page = await browser.newPage()
+        # page = (await browser.pages())[0]  # 不用新页面就不会弹出douyin安装客户端的请求
 
         #  cookies
         if cookies is not None:
@@ -229,6 +232,7 @@ class DouyinPlatformAction(PlatformAction):
             await run_work(keyword=keyword, page=page, result=result)
         except Exception as e:
             logger.error(e)
+            logger.error("Traceback:\n%s", traceback.format_exc())
         finally:
             await browser.close()
 

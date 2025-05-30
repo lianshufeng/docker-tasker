@@ -1,7 +1,5 @@
-@echo off
+ï»¿@echo off
+chcp 65001 >nul
 
-docker run  --rm  -p 7900:7900 --shm-size=2g platform_items:v0.1 bash -c "sleep 9999"
-
-REM docker run  --rm  -p 7900:7900 --shm-size=2g platform_items:v0.1 python main.py -k=ÃÀÅ®ÌøÎè -p douyin
-
-pause
+REM docker run  --rm  -p 7900:7900 --shm-size=2g platform_items:v0.1 bash -c "sleep 9999"
+docker run  --rm  -p 7900:7900 --shm-size=2g platform_items:v0.1 python main.py -k=ç¾Žå¥³è·³èˆž -p douyin

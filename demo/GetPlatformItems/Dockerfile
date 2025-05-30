@@ -19,14 +19,6 @@ RUN mkdir -p /var/lib/apt/lists/partial && \
 
 
 
-# xvfb
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        python3-tk python3-dev xvfb && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-
 # 不要设置 VNC 密码
 ENV VNC_NO_PASSWORD=1
 
