@@ -1,3 +1,5 @@
+from typing import Any
+
 import uvicorn
 from celery.result import AsyncResult
 from fastapi import FastAPI, Body, HTTPException
@@ -14,6 +16,12 @@ app = FastAPI(title="分布式任务接口文档")
 def add_task(data: dict = Body(..., example={
     "image": "192.168.31.98:5000/python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123);print('===result-data===');"],
+    "container_kwargs": {
+        "shm_size": "2g",
+        "ports": {
+            "7900/tcp": 7900
+        },
+    },
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
@@ -22,6 +30,7 @@ def add_task(data: dict = Body(..., example={
 })):
     image = data.get('image')
     command = data.get('command')
+    container_kwargs: dict[str, Any] = data.get('container_kwargs', {})  # 容器的其他参数
     max_retries = data.get('max_retries', 1)  # 最大重试次数
     retry_delay = data.get('retry_delay', 5)  # 重试延迟
     queue = data.get('queue', "celery")  # 默认队列名
@@ -34,6 +43,7 @@ def add_task(data: dict = Body(..., example={
     task = run_docker_task.apply_async(kwargs={
         "image": image,
         "command": command,
+        "container_kwargs": container_kwargs,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
     },

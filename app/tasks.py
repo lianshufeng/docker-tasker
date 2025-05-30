@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import traceback
+from typing import Any
 
 import docker
 from celery import Celery
@@ -38,13 +39,16 @@ def docker_login():
             except docker.errors.APIError as e:
                 logger.error(f"Failed to login to Docker registry {registry}: {e}")
 
+
 # worker 启动时只调用一次
 docker_login()
 
+
 @app.task(bind=True)
 def run_docker_task(self,
-                    image: str,      # Docker 镜像名
-                    command: list,   # 容器中执行的命令
+                    image: str,  # Docker 镜像名
+                    command: list,  # 容器执行的命令行
+                    container_kwargs: dict[str, Any],  # 容器的运行参数
                     max_retries: int = 0,
                     retry_delay: int = 5):
     """
@@ -68,9 +72,7 @@ def run_docker_task(self,
         container = docker_client.containers.create(
             image=image,
             command=command,
-            detach=True,
-            # 你可以按需增加资源限制参数，例如：
-            # mem_limit='1g', cpu_quota=50000
+            **container_kwargs,  # 扩展参数，具体可以参考api
         )
         logger.info(f"Container {container.id} created successfully for image {image}.")
         container.start()
@@ -123,4 +125,3 @@ def run_docker_task(self,
                 logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
                 logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
-

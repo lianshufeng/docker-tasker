@@ -10,7 +10,7 @@ docker build ./ -t platform_items:v0.1 --build-arg HTTP_PROXY=%HTTP_PROXY% --bui
 
 
 :: 推送
-docker tag platform_items:latest %REGISTRY_HOST%/platform_items:v0.1
-docker logout %REGISTRY_HOST%:5000
+docker tag platform_items:v0.1 %REGISTRY_HOST%/platform_items:v0.1
+docker logout %REGISTRY_HOST%
 docker login %REGISTRY_HOST% -u admin -p xiaofengfeng
 docker push %REGISTRY_HOST%/platform_items:v0.1

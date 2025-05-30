@@ -134,7 +134,8 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
 
         # 延迟处理，防止没有获取边界
         while await scroll_list_element.boxModel() is None:
-            await asyncio.sleep(0.1)
+            scroll_list_element = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
+            await asyncio.sleep(0.3)
 
         # 模拟点击空白处，获取焦点
         scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
