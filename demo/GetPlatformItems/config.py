@@ -1,11 +1,12 @@
 # 定义并解析命令行参数。
 import argparse
 
-from platforms import PlatformAction, DouyinPlatformAction, KuaishouPlatformAction
+from platforms import DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction
 
 platform_map = {
     'douyin': DouyinPlatformAction,
     'kuaishou': KuaishouPlatformAction,
+    'b': BPlatformAction
 }
 
 

@@ -1,4 +1,8 @@
 pyppeteer>=2.0.0
-pyppeteer_stealth
 
 pydantic>=v2.11.5
+
+
+pyautogui
+opencv-python
+pillow

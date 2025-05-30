@@ -1,7 +1,10 @@
 import asyncio
 import logging
+import os
 import random
+import time
 
+import pyautogui
 from pyppeteer import launch
 from pyppeteer.browser import Browser
 from pyppeteer.element_handle import ElementHandle
@@ -20,6 +23,28 @@ width = 800
 height = 600
 
 douyin_page_home = 'https://www.douyin.com'
+
+
+
+async def cancel_xdg_open_button():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    img_path = os.path.join(script_dir, 'images', 'cancel_xdg_open_button.png')
+    while True:
+        try:
+            location = pyautogui.locateOnScreen(img_path, confidence=0.85)  # 可调整置信度
+            if location:
+                x, y = pyautogui.center(location)
+                pyautogui.moveTo(x, y, duration=0.1)
+                pyautogui.click()
+                print(f"已自动点击 '取消' 按钮，位置: ({x}, {y})")
+                await asyncio.sleep(1)  # 点过后休息1秒，防止连点
+            else:
+                await asyncio.sleep(0.2)  # 没找到就快速重试
+        except Exception as e:
+            pass
+        finally:
+            await asyncio.sleep(0.2)
+
 
 
 # 异步执行，发现就关闭登录面板
@@ -161,6 +186,13 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
 class DouyinPlatformAction(PlatformAction):
 
     async def action(self, keyword: str, cookies: str = None) -> ActionResult:
+
+
+        # 异步xdg_窗口
+        asyncio.create_task(cancel_xdg_open_button())
+
+
+
         chrome: list[str] = getChromeExecutablePath()
         chrome_path = chrome[0] if chrome else None
         if chrome_path is None:
@@ -176,11 +208,13 @@ class DouyinPlatformAction(PlatformAction):
                 '--incognito',  # 无痕
                 '--disable-infobars',  # 取消提示正在被受控制
                 '--disable-blink-features=AutomationControlled',
-                f'--window-size={width},{height}'  # 这里设置窗口分辨率为1280x800
+                f'--window-size={width},{height}',  # 这里设置窗口分辨率
+                '--window-position=0,0',  # 这里指定窗口起始坐标
             ],
             ignoreDefaultArgs=['--enable-automation'],  # 隐藏提示栏
         )
         page: Page = await browser.newPage()
+
 
         #  cookies
         if cookies is not None:
