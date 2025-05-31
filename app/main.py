@@ -14,12 +14,12 @@ app = FastAPI(title="分布式任务接口文档")
 
 @app.post("/api/add", tags=["task"])
 def add_task(data: dict = Body(..., example={
-    "image": "192.168.31.98:5000/python:3.13-slim",
+    "image": "python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123);print('===result-data===');"],
     "container_kwargs": {
         "shm_size": "2g",
         "ports": {
-            "7900/tcp": 7900
+            "7900/tcp": None # 这里是外部映射的端口，null为随机，7900 为固定的
         },
     },
     "queue": "celery",
