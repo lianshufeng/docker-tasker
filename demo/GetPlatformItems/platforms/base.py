@@ -46,13 +46,18 @@ class ActionResultItem(BaseModel):
 
 
 class ActionResult(BaseModel):
+
+    # 是否成功
+    success: bool = True
+    # 消息
+    msg: str = None
+
     cookies: str = None
 
     items: list[ActionResultItem] = None
 
 
 class PlatformAction(BaseModel):
-
     # 执行任务
-    async def action(self, keyword: str, cookies: str = None) -> ActionResult:
+    async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
         pass

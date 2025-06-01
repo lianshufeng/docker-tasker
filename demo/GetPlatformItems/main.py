@@ -1,8 +1,17 @@
 import asyncio
+import logging
+import traceback
 
 from Result import Result, Item
 from config import _parse_args, make_platform
 from platforms import PlatformAction, ActionResult
+
+# 日志配置，建议你根据生产环境实际需要调整
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 _config = _parse_args()
 
@@ -28,11 +37,13 @@ async def main():
 
         try:
             items: list[Item] = []
-            result: ActionResult = await platform_action.action(keyword=keyword, cookies=cookies)
+            result: ActionResult = await platform_action.action(keyword=keyword, cookies=cookies, **_config)
             for it in result.items:
                 items.append(Item(title=it.title, url=it.url))
-            Result(success=True, items=items, cookies=result.cookies).print()
+            Result(success=result.success, msg=result.msg, items=items, cookies=result.cookies).print()
         except Exception as e:
+            logger.error(e)
+            logger.error("Traceback:\n%s", traceback.format_exc())
             Result(success=False, msg=f"调用接口出现异常").print()
 
 

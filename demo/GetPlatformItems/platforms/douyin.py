@@ -23,26 +23,6 @@ height = 600
 douyin_page_home = 'https://www.douyin.com'
 
 
-# async def cancel_xdg_open_button():
-#     script_dir = os.path.dirname(os.path.abspath(__file__))
-#     img_path = os.path.join(script_dir, 'images', 'cancel_xdg_open_button.png')
-#     while True:
-#         try:
-#             location = pyautogui.locateOnScreen(img_path, confidence=0.85)  # 可调整置信度
-#             if location:
-#                 x, y = pyautogui.center(location)
-#                 pyautogui.moveTo(x, y, duration=0.1)
-#                 pyautogui.click()
-#                 print(f"已自动点击 '取消' 按钮，位置: ({x}, {y})")
-#                 await asyncio.sleep(1)  # 点过后休息1秒，防止连点
-#             else:
-#                 await asyncio.sleep(0.2)  # 没找到就快速重试
-#         except Exception as e:
-#             pass
-#         finally:
-#             await asyncio.sleep(0.2)
-
-
 # 异步执行，发现就关闭登录面板
 async def close_login_panel(page: Page, is_exit: bool):
     while True:
@@ -60,7 +40,7 @@ async def close_login_panel(page: Page, is_exit: bool):
         await asyncio.sleep(0.1)  # 周期检查
 
 
-async def run_work(keyword: str, page: Page, result: ActionResult):
+async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int):
     result.items = []
 
     # #增强，防止被检测到
@@ -107,7 +87,6 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
         timeout=10000)
     if where_btn:
         logger.info("触发筛选按钮")
-
         # await page.evaluate('el => {'
         #                     'el.dispatchEvent(new MouseEvent("mouseenter", {bubbles: true}));'
         #                     'el.dispatchEvent(new MouseEvent("mouseover", {bubbles: true}));'
@@ -131,14 +110,21 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
     # 找到列表项
     scroll_list_element: ElementHandle = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
     if scroll_list_element:
-
         # 延迟处理，防止没有获取边界
-        while await scroll_list_element.boxModel() is None:
+        for _ in range(20):
             scroll_list_element = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.5)
 
         # 模拟点击空白处，获取焦点
-        scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
+        logger.info("模拟点击空白处，获取焦点")
+
+        scroll_list_element_content = {'x': 30, 'y': 166}
+        scroll_boxModel = (await scroll_list_element.boxModel())
+        if scroll_boxModel is not None and scroll_boxModel.get('content') is not None and \
+                scroll_boxModel.get('content')[
+                    0] is not None:
+            scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
+
         x = scroll_list_element_content['x'] - random.randint(10, 20)
         y = scroll_list_element_content['y'] + random.randint(10, 30)
         await  page.mouse.click(x=x, y=y)
@@ -147,7 +133,7 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
         latest_li_len: int = len(await scroll_list_element.querySelectorAll('li'))
 
         # 通过翻页按钮按钮进行翻页操作
-        for _ in range(120):
+        for _ in range(999):
             await scroll_list_element.press('PageDown')
             await asyncio.sleep(0.8)  # 间隔时间等待加载
             now_li_len: int = len(await scroll_list_element.querySelectorAll('li'))
@@ -161,8 +147,13 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
             latest_li_len = now_li_len
             logger.info('load items : ' + str(latest_li_len))
 
+            # 目前采集的数量
+            if latest_li_len >= max_size:
+                break
+
         # 开始取出所有的标题与url
         li_elements: list[ElementHandle] = await scroll_list_element.querySelectorAll('li')
+        li_elements = li_elements[:max_size]
         logger.info('total items : ' + str(len(li_elements)))
         for li in li_elements:
             try:
@@ -190,10 +181,13 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
 
 class DouyinPlatformAction(PlatformAction):
 
-    async def action(self, keyword: str, cookies: str = None) -> ActionResult:
+    async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
 
-        # 异步xdg_窗口
-        # asyncio.create_task(cancel_xdg_open_button())
+        # 最大采集数量
+        max_size: int = kwargs.get('max_size') or 999
+
+        # 代理服务器
+        proxy: str | None = kwargs.get('proxy', None)
 
         chrome: list[str] = getChromeExecutablePath()
         chrome_path = chrome[0] if chrome else None
@@ -203,17 +197,22 @@ class DouyinPlatformAction(PlatformAction):
         # 保存的结果集
         result: ActionResult = ActionResult()
 
+        args = [
+            '--incognito',  # 无痕
+            '--disable-infobars',  # 取消提示正在被受控制
+            '--no-first-run',  # 跳过首次运行时的欢迎界面和介绍。
+            '--no-default-browser-check',  # 启动时不询问是否将 Chrome 设置为默认浏览器。
+            f'--window-size={width},{height}',  # 这里设置窗口分辨率
+            '--window-position=0,0'  # 这里指定窗口起始坐标
+        ]
+
+        if proxy is not None:
+            args.append(f'--proxy-server=https={proxy}')
+
         browser: Browser = await launch(
             headless=False,  # 无头模式
             executablePath=chrome_path,  # chrome路径
-            args=[
-                '--incognito',  # 无痕
-                '--disable-infobars',  # 取消提示正在被受控制
-                '--no-first-run',  # 跳过首次运行时的欢迎界面和介绍。
-                '--no-default-browser-check',  # 启动时不询问是否将 Chrome 设置为默认浏览器。
-                f'--window-size={width},{height}',  # 这里设置窗口分辨率
-                '--window-position=0,0',  # 这里指定窗口起始坐标
-            ],
+            args=args,
             ignoreDefaultArgs=['--enable-automation'],  # 隐藏提示栏
         )
 
@@ -230,10 +229,12 @@ class DouyinPlatformAction(PlatformAction):
             await page.setCookie(*cookie_list)
 
         try:
-            await run_work(keyword=keyword, page=page, result=result)
+            await run_work(keyword=keyword, page=page, result=result, max_size=max_size)
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())
+            result.success = False
+            result.msg = traceback.format_exc()
         finally:
             await browser.close()
 

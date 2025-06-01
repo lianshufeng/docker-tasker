@@ -16,13 +16,13 @@ class Result(BaseModel):
     success: bool = False
 
     # 消息
-    msg: str = None
+    msg: str | None = None
 
     # items
-    items: List[Item] = None
+    items: List[Item] | None = None
 
     # cookies
-    cookies: str = None
+    cookies: str | None = None
 
     # 打印到控制台
     def print(self, big_data: bool = False):

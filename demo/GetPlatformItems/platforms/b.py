@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 width = 800
 height = 600
 
+
 async def get_page_list(page: Page, result: ActionResult):
     scroll_list_element: ElementHandle = await page.waitForSelector('[class="video-list row"]', timeout=3000)
 
@@ -53,6 +54,7 @@ async def get_page_list(page: Page, result: ActionResult):
                 logger.error(e)
                 continue
 
+
 async def run_work(keyword: str, page: Page, result: ActionResult):
     result.items = []
 
@@ -63,7 +65,7 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
     await page.goto(url)
     print("打开网站")
 
-    await get_page_list(page, result) # 得到当前页数据
+    await get_page_list(page, result)  # 得到当前页数据
 
     if len(result.items) > 0:
         while True:
@@ -95,7 +97,7 @@ async def run_work(keyword: str, page: Page, result: ActionResult):
 
 class BPlatformAction(PlatformAction):
 
-    async def action(self, keyword: str, cookies: str = None) -> ActionResult:
+    async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
         chrome: list[str] = getChromeExecutablePath()
         chrome_path = chrome[0] if chrome else None
         if chrome_path is None:
@@ -129,7 +131,7 @@ class BPlatformAction(PlatformAction):
         try:
             await run_work(keyword=keyword, page=page, result=result)
         except Exception as e:
-            logger.error('error: ',e)
+            logger.error('error: ', e)
         finally:
             await browser.close()
         return result
