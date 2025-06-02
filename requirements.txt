@@ -1,7 +1,7 @@
 fastapi>=0.115.0
 uvicorn>=0.34.0
 
-celery>=5.5.2
+celery>=5.5.3
 redis>=5.0.0
 
 

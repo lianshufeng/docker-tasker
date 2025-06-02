@@ -1,6 +1,6 @@
 
 :: image
-set IMAGE_VERSION=v0.1
+set IMAGE_VERSION=v0.2
 
 :: proxy 
 set HTTP_PROXY=http://192.168.31.98:1080
