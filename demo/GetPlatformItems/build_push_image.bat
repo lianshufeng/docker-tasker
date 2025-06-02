@@ -6,11 +6,11 @@ call .\env.bat
 
 
 :: 编译
-docker build ./ -t platform_items:v0.1 --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY%
+docker build ./ -t platform_items:%IMAGE_VERSION% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY%
 
 
 :: 推送
-docker tag platform_items:v0.1 %REGISTRY_HOST%/platform_items:v0.1
+docker tag platform_items:%IMAGE_VERSION% %REGISTRY_HOST%/platform_items:%IMAGE_VERSION%
 docker logout %REGISTRY_HOST%
 docker login %REGISTRY_HOST% -u admin -p xiaofengfeng
-docker push %REGISTRY_HOST%/platform_items:v0.1
+docker push %REGISTRY_HOST%/platform_items:%IMAGE_VERSION%
