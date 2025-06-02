@@ -119,7 +119,8 @@ def run_docker_task(self,
             "success": exit_result.get("StatusCode", 1) == 0,
             "attempt": attempt,
             "result": result,
-            "status_code": exit_result.get("StatusCode")
+            "status_code": exit_result.get("StatusCode"),
+            "callback": callback
         }
 
     except Exception as e:
@@ -133,8 +134,7 @@ def run_docker_task(self,
                 "success": False,
                 "attempt": attempt,
                 "error": str(e),
-                "traceback": traceback.format_exc(),
-                "callback":callback
+                "traceback": traceback.format_exc()
             }
 
     finally:
