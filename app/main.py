@@ -19,14 +19,15 @@ def add_task(data: dict = Body(..., example={
     "container_kwargs": {
         "shm_size": "2g",
         "ports": {
-            "7900/tcp": None # 这里是外部映射的端口，null为随机，7900 为固定的
+            "7900/tcp": None  # 这里是外部映射的端口，null为随机，7900 为固定的
         },
     },
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
     "countdown": 3,
-    "expires": 60 * 60 * 2
+    "expires": 60 * 60 * 2,
+    "callback": None  # 回调的地址，注意必须是一个post请求
 })):
     image = data.get('image')
     command = data.get('command')
@@ -36,6 +37,7 @@ def add_task(data: dict = Body(..., example={
     queue = data.get('queue', "celery")  # 默认队列名
     countdown = data.get('countdown', None)  # 倒计时执行 (秒)
     expires = data.get('expires', None)  # 过期时间 (秒)
+    callback = data.get('callback', None)  # 回调地址
 
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
@@ -46,6 +48,7 @@ def add_task(data: dict = Body(..., example={
         "container_kwargs": container_kwargs,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
+        "callback": callback
     },
         retry=True,
         max_retries=max_retries,

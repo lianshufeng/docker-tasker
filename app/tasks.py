@@ -5,7 +5,8 @@ import traceback
 from typing import Any
 
 import docker
-from celery import Celery
+import requests
+from celery import Celery, Task
 from docker.errors import ImageNotFound
 
 # 日志配置，建议你根据生产环境实际需要调整
@@ -44,13 +45,31 @@ def docker_login():
 docker_login()
 
 
-@app.task(bind=True)
+class CallbackTask(Task):
+    def on_success(self, retval, task_id, args, kwargs):
+        callback = kwargs.get('callback')
+        if callback and callback.startswith(('http://', 'https://')):
+            try:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Task-Id": task_id
+                }
+                response = requests.post(callback, json=retval, headers=headers, timeout=6)
+                logger.info(f"callback: {response.status_code} - {response.text}")
+            except Exception as e:
+                logger.error(f"回调通知失败:{e}")
+                logger.error("Traceback:\n%s", traceback.format_exc())
+
+
+@app.task(bind=True, base=CallbackTask)
 def run_docker_task(self,
                     image: str,  # Docker 镜像名
                     command: list,  # 容器执行的命令行
                     container_kwargs: dict[str, Any],  # 容器的运行参数
                     max_retries: int = 0,
-                    retry_delay: int = 5):
+                    retry_delay: int = 5,
+                    callback: str = None,  # 回调url，任务执行完成后回调的地址
+                    ):
     """
     在 Docker 容器中运行指定命令，支持失败重试。
     """
@@ -114,7 +133,8 @@ def run_docker_task(self,
                 "success": False,
                 "attempt": attempt,
                 "error": str(e),
-                "traceback": traceback.format_exc()
+                "traceback": traceback.format_exc(),
+                "callback":callback
             }
 
     finally:
