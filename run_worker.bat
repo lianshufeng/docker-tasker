@@ -5,4 +5,4 @@ chcp 65001 >nul
 call .\env.bat
 
 
-celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1 -Q celery,test
+celery -A app.worker worker --loglevel=info --pool=solo --concurrency=1 -Q celery,test

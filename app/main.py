@@ -5,7 +5,7 @@ from celery.result import AsyncResult
 from fastapi import FastAPI, Body, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.tasks import app as celery_app, run_docker_task
+from app.worker import app as celery_app, run_docker_task
 
 app = FastAPI(title="分布式任务接口文档")
 
