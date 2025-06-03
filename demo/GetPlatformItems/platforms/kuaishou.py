@@ -6,7 +6,6 @@ import uuid
 from urllib.parse import quote
 
 import httpx
-from isapi.samples.redirector_with_filter import proxy
 
 from .base import ActionResultItem, PlatformAction, ActionResult
 
