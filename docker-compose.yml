@@ -20,7 +20,7 @@ services:
     volumes:
       - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
       - /var/run/docker.sock:/var/run/docker.sock
-    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1  -Q celery
+    command: celery -A app.worker worker --loglevel=info --pool=solo --concurrency=1  -Q celery
     restart: always
     deploy:
       replicas: 1 # 副本数量为
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./conf/celery_config.py:/opt/tasker/conf/celery_config.py
       - /var/run/docker.sock:/var/run/docker.sock
-    command: celery -A app.tasks worker --loglevel=info --pool=solo --concurrency=1  -Q celery,test
+    command: celery -A app.worker worker --loglevel=info --pool=solo --concurrency=1  -Q celery,test
     restart: always
     deploy:
       replicas: 2 # 副本数量为
