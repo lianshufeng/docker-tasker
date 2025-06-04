@@ -4,14 +4,23 @@ from pydantic import BaseModel
 
 
 class Item(BaseModel):
-    # 标题
-    title: str
     # url
-    url: str
+    url: str  # 传入的参数
+
+    # 具体的平台
+    type: str = None
+
+
+    # 视频地址
+    video_url: str = None
+
+
+
 
 
 # 响应的模型
 class Result(BaseModel):
+
     # 结果
     success: bool = False
 

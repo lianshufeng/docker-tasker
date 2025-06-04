@@ -4,6 +4,7 @@ import traceback
 
 from Result import Result, Item
 from config import _parse_args, make_platform
+from platforms import ActionResultItem
 from platforms import PlatformAction, ActionResult
 
 # 日志配置，建议你根据生产环境实际需要调整
@@ -27,23 +28,20 @@ async def main():
         Result(success=False, msg=f"url参数不能为空").print()
         return
 
-    urls:list[str] = urls[0]
+    urls: list[str] = urls[0]
 
-
-
+    items: list[Item] = []
     for url in urls:
         platform = make_platform(url)
         if platform is not None:
             try:
-                items: list[Item] = []
-                result: ActionResult = await platform.action(url=url, **_config)
-                for it in result.items:
-                    items.append(Item(title=it.title, url=it.url))
-                Result(success=result.success, msg=result.msg, items=items, cookies=result.cookies).print()
+                it: ActionResultItem = await platform.action(url=url, **_config)
+                items.append(Item(url=url))
             except Exception as e:
                 logger.error(e)
                 logger.error("Traceback:\n%s", traceback.format_exc())
-                Result(success=False, msg=f"调用接口出现异常").print()
+
+    Result(success=len(items) > 0, items=items, cookies=None).print()
 
 
 if __name__ == '__main__':

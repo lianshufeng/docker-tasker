@@ -41,8 +41,12 @@ def getChromeExecutablePath() -> list[str]:
 
 
 class ActionResultItem(BaseModel):
-    title: str
+
+
     url: str
+
+
+
 
 
 class ActionResult(BaseModel):
@@ -58,7 +62,7 @@ class ActionResult(BaseModel):
 
 class PlatformAction(BaseModel):
     # 执行任务
-    async def action(self, url: str, *args, **kwargs) -> ActionResult:
+    async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         pass
 
     def filter(self, url: str) -> bool:
