@@ -5,7 +5,6 @@ import traceback
 from Result import Result, Item
 from config import _parse_args, make_platform
 from platforms import ActionResultItem
-from platforms import PlatformAction, ActionResult
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
