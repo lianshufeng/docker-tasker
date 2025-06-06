@@ -1,13 +1,12 @@
 import asyncio
-import json
 import logging
 import random
 import re
 
 from douyin_tiktok_scraper.scraper import Scraper
 
-from demo.GetPlatformItemInfo.crawlers.douyin.web.web_crawler import DouyinWebCrawler
 from .base import PlatformAction, ActionResultItem, find_first_playable_video, Comment
+from .crawlers.douyin.web.web_crawler import DouyinWebCrawler
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -45,7 +44,7 @@ def find_best_video(bit_rate_list):
 
 
 # 分页查询所有的评论
-async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0):
+async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0, max_comment_count: int = 800):
     comments_dict: dict = await _douyin_web_crawler.fetch_video_comments(aweme_id=video_id, cursor=cursor, count=20)
     if comments_dict.get("status_code") == 0:
 
@@ -70,11 +69,11 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0)
         logger.info("page_comments : %s/%s", len(comments), total)
 
         #  还有数据，可以继续翻页
-        if comments_dict.get("has_more") == 1:
+        if comments_dict.get("has_more") == 1 and (max_comment_count is not None and len(comments) < max_comment_count):
             # 取出当前游标
             cursor = comments_dict.get("cursor")
-            await asyncio.sleep(random.randint(800, 3000) / 1000)
-            await page_comments(comments, video_id, cursor)
+            await asyncio.sleep(random.randint(800, 2000) / 1000)
+            await page_comments(comments, video_id, cursor, max_comment_count)
 
     pass
 
@@ -94,9 +93,13 @@ class DouyinPlatformAction(PlatformAction):
         item: ActionResultItem = ActionResultItem()
 
         # 评论跳过数
-        skip_comment_count: int | None = kwargs.get("skip_comment_count", 0)
+        skip_comment_count: int | None = kwargs.get("skip_comment_count", None)
         if skip_comment_count is None:
             skip_comment_count = 0
+
+        max_comment_count: int | None = kwargs.get("max_comment_count", None)
+        if max_comment_count is None:
+            max_comment_count = 800
 
         # ------------------ 取出视频id
         video_id: str = await _scraper.get_douyin_video_id(original_url=url)
@@ -135,6 +138,7 @@ class DouyinPlatformAction(PlatformAction):
         # ------------------ 评论数据
         item.comments = []
 
-        await page_comments(comments=item.comments, video_id=video_id, cursor=skip_comment_count)
+        await page_comments(comments=item.comments, video_id=video_id, cursor=skip_comment_count,
+                            max_comment_count=max_comment_count)
 
         return item

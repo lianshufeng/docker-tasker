@@ -1,7 +1,9 @@
 # 定义并解析命令行参数。
 import argparse
 
-from platforms import DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction
+from platforms.b import BPlatformAction
+from platforms.douyin import DouyinPlatformAction
+from platforms.kuaishou import KuaishouPlatformAction
 
 platform_items = [DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction]
 
@@ -24,6 +26,10 @@ def _parse_args() -> dict:
                         required=True)
 
     parser.add_argument("--skip_comment_count", type=int, default=None,
+                        help="输入评论跳过的数量",
+                        required=False)
+
+    parser.add_argument("--max_comment_count", type=int, default=800,
                         help="输入评论跳过的数量",
                         required=False)
 

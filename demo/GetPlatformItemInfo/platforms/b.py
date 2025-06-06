@@ -4,8 +4,7 @@ import re
 from douyin_tiktok_scraper.scraper import Scraper
 
 from .base import PlatformAction, ActionResultItem
-from demo.GetPlatformItemInfo.crawlers.hybrid.hybrid_crawler import HybridCrawler
-from demo.GetPlatformItemInfo.crawlers.bilibili.web.web_crawler import BilibiliWebCrawler
+from .crawlers.bilibili.web.web_crawler import BilibiliWebCrawler
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
