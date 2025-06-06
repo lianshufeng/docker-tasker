@@ -19,8 +19,13 @@ def _parse_args() -> dict:
     parser = argparse.ArgumentParser(description="获取平台的详情")
 
     # 关键词
-    parser.add_argument("--url", type=lambda s: s.split(','), nargs='+', default=None, help="输入平台视频的URL,多个用空格间隔",
+    parser.add_argument("--url", type=lambda s: s.split(','), nargs='+', default=None,
+                        help="输入平台视频的URL,多个用空格间隔",
                         required=True)
+
+    parser.add_argument("--skip_comment_count", type=int, default=None,
+                        help="输入评论跳过的数量",
+                        required=False)
 
     # cookies
     parser.add_argument("-c", type=str, default=None, help="cookies", required=False)

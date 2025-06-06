@@ -52,13 +52,11 @@ class BPlatformAction(PlatformAction):
             # logger.info("video_url = %s", play_url)
             ret:dict = await _crawler.fetch_video_comments(bv_id=bv, pn=0)
             print(ret)
-
-
-
-
-
         pass
 
     def filter(self, url: str) -> bool:
         pattern = r'^https://www\.bilibili\.com/video/'
         return re.match(pattern, url) is not None
+
+    def type(self):
+        return "b"

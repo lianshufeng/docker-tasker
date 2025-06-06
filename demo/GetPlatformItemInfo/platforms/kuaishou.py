@@ -18,3 +18,6 @@ class KuaishouPlatformAction(PlatformAction):
 
     def filter(self, url: str) -> bool:
         pass
+
+    def type(self):
+        return "kuaishou"

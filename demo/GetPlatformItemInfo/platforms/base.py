@@ -2,7 +2,46 @@ import os
 import shutil
 import sys
 
+import ffmpeg
 from pydantic import BaseModel
+
+
+def is_video_playable(video_url: str, header: dict[str, str] = None) -> bool:
+    """
+    判断给定视频 url 是否可以正常打开和播放
+    """
+    probe_kwargs = dict(
+        v='error',
+        select_streams='v:0',
+        show_entries='stream=codec_name,width,height,duration,r_frame_rate,bit_rate'
+    )
+    if header:
+        probe_kwargs['headers'] = ''.join(f"{k}: {v}\r\n" for k, v in header.items())
+    try:
+        probe = ffmpeg.probe(video_url, **probe_kwargs)
+        stream = probe['streams'][0]
+        if (
+                stream.get('codec_name') and
+                float(stream.get('width', 0)) > 0 and
+                float(stream.get('height', 0)) > 0 and
+                float(stream.get('duration', 0)) > 0
+        ):
+            return True
+        return False
+    except Exception:
+        return False
+
+
+# 寻找第一个可以播放的链接
+def find_first_playable_video(url_list: list[str]) -> str | None:
+    for url in reversed(url_list):
+        header: dict[str, str] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+            "Referer": url
+        }
+        if is_video_playable(url, header):
+            return url
+    return None
 
 
 def getChromeExecutablePath() -> list[str]:
@@ -40,13 +79,54 @@ def getChromeExecutablePath() -> list[str]:
     return list(dict.fromkeys(chrome_paths))
 
 
+# 评论
+class Comment(BaseModel):
+    # 评论id
+    cid: str = None
+
+    # 评论
+    text: str = None
+
+    # 用户id
+    uid: str = None
+
+    # 昵称
+    nickname: str = None
+
+    # 发布时间
+    create_time: int = None
+
+    # 点赞
+    digg_count: int = None
+
+
 class ActionResultItem(BaseModel):
+    # 平台资源的id
+    id: str | None = None
 
+    # 发布作者的昵称与用户id
+    author_nickname: str | None = None
+    author_uid: str | None = None
 
-    url: str
+    # 点赞
+    statistics_digg_count: int | None = None
+    # 评论总数
+    statistics_comment_count: int | None = None
 
+    # 标题
+    title: str | None = None
 
+    # 描述
+    description: str | None = None
 
+    # 视频的播放地址
+    video_url: str | None = None
+
+    # 音频的播放地址
+    audio_url: str | None = None
+
+    # 评论
+    comments: list[Comment] | None = None
 
 
 class ActionResult(BaseModel):
@@ -65,5 +145,10 @@ class PlatformAction(BaseModel):
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         pass
 
+    # 取出平台类型
+    def type(self) -> str | None:
+        pass
+
+    #  过滤是否满足该平台
     def filter(self, url: str) -> bool:
         pass

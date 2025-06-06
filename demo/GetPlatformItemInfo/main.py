@@ -35,7 +35,15 @@ async def main():
         if platform is not None:
             try:
                 it: ActionResultItem = await platform.action(url=url, **_config)
-                items.append(Item(url=url))
+
+                _item = Item()
+                _item.__dict__ = it.__dict__.copy()
+
+                # 固定参数
+                _item.url = url
+                _item.type = platform.type()
+
+                items.append(_item)
             except Exception as e:
                 logger.error(e)
                 logger.error("Traceback:\n%s", traceback.format_exc())
