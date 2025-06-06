@@ -103,6 +103,8 @@ class DouyinPlatformAction(PlatformAction):
         if max_comment_count is None:
             max_comment_count = 800
 
+        logger.info(f"comment: skip_count - max_count: %s - %s ", skip_comment_count, max_comment_count)
+
         # ------------------ 取出视频id
         video_id: str = await _scraper.get_douyin_video_id(original_url=url)
         logger.info("douyin video id: %s", video_id)
