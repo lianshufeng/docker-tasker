@@ -48,8 +48,11 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
     comments_dict: dict = await _douyin_web_crawler.fetch_video_comments(aweme_id=video_id, cursor=cursor, count=20)
     if comments_dict.get("status_code") == 0:
 
-        # 总页数
+        # 总数
         total: int = comments_dict.get("total")
+
+        # 当前游标
+        cursor: int = comments_dict.get("cursor")
 
         for comment in comments_dict.get("comments"):
             comment_ret: Comment = Comment()
@@ -66,14 +69,13 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
 
             comments.append(comment_ret)
 
-        logger.info("page_comments : %s/%s", len(comments), total)
+        logger.info("page_comments : %s/%s", cursor, total)
 
         #  还有数据，可以继续翻页
         if comments_dict.get("has_more") == 1 and (max_comment_count is not None and len(comments) < max_comment_count):
-            # 取出当前游标
-            cursor = comments_dict.get("cursor")
             await asyncio.sleep(random.randint(800, 2000) / 1000)
-            await page_comments(comments, video_id, cursor, max_comment_count)
+            await page_comments(comments=comments, video_id=video_id, cursor=cursor,
+                                max_comment_count=max_comment_count)
 
     pass
 
