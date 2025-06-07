@@ -36,7 +36,8 @@
 import asyncio  # 异步I/O
 import os  # 系统操作
 import time  # 时间操作
-from urllib.parse import urlencode, quote  # URL编码
+from urllib.parse import urlencode  # URL编码
+
 import yaml  # 配置文件
 
 # 基础爬虫客户端和抖音API端点
@@ -51,13 +52,13 @@ from ...douyin.web.models import (
 )
 # 抖音应用的工具类
 from ...douyin.web.utils import (AwemeIdFetcher,  # Aweme ID获取
-                                       BogusManager,  # XBogus管理
-                                       SecUserIdFetcher,  # 安全用户ID获取
-                                       TokenManager,  # 令牌管理
-                                       VerifyFpManager,  # 验证管理
-                                       WebCastIdFetcher,  # 直播ID获取
-                                       extract_valid_urls  # URL提取
-                                       )
+                                 BogusManager,  # XBogus管理
+                                 SecUserIdFetcher,  # 安全用户ID获取
+                                 TokenManager,  # 令牌管理
+                                 VerifyFpManager,  # 验证管理
+                                 WebCastIdFetcher,  # 直播ID获取
+                                 extract_valid_urls  # URL提取
+                                 )
 
 # 配置文件路径
 path = os.path.abspath(os.path.dirname(__file__))
@@ -65,6 +66,8 @@ path = os.path.abspath(os.path.dirname(__file__))
 # 读取配置文件
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
+    from ....config_utils import merge_config_env
+    merge_config_env(config)
 
 
 class DouyinWebCrawler:

@@ -51,6 +51,8 @@ path = os.path.abspath(os.path.dirname(__file__))
 # 读取配置文件
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
+    from ....config_utils import merge_config_env
+    merge_config_env(config)
 
 
 class BilibiliWebCrawler:

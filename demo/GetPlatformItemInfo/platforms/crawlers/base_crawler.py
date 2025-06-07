@@ -37,7 +37,7 @@ import json
 import asyncio
 import re
 
-from httpx import Response
+from httpx import Response, AsyncBaseTransport
 
 from .utils.logger import logger
 from .utils.api_exceptions import (
@@ -68,7 +68,15 @@ class BaseCrawler:
             crawler_headers: dict = {},
     ):
         if isinstance(proxies, dict):
-            self.proxies = proxies
+            # self.proxies = proxies
+            self.proxies = {}
+            if proxies.get("http://") is not None:
+                self.proxies["http://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("http://", None)}", verify=False)
+            if proxies.get("https://") is not None:
+                self.proxies["https://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("https://", None)}", verify=False)
+
+
+
             # [f"{k}://{v}" for k, v in proxies.items()]
         else:
             self.proxies = None
@@ -95,7 +103,7 @@ class BaseCrawler:
         # 异步客户端 / Asynchronous client
         self.aclient = httpx.AsyncClient(
             headers=self.crawler_headers,
-            # proxies=self.proxies,
+            mounts=self.proxies,
             timeout=self.timeout,
             limits=self.limits,
             transport=self.atransport,

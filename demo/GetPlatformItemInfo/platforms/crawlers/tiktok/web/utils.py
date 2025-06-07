@@ -31,6 +31,8 @@ path = os.path.abspath(os.path.dirname(__file__))
 # 读取配置文件
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
+    from ....config_utils import merge_config_env
+    merge_config_env(config)
 
 
 class TokenManager:
@@ -39,10 +41,11 @@ class TokenManager:
     ttwid_conf = tiktok_manager.get("ttwid", None)
     odin_tt_conf = tiktok_manager.get("odin_tt", None)
     proxies_conf = tiktok_manager.get("proxies", None)
-    proxies = {
-        "http://": proxies_conf.get("http", None),
-        "https://": proxies_conf.get("https", None),
-    }
+    proxies = {}
+    if proxies_conf.get("http") is not None:
+        proxies["http://"] = httpx.HTTPTransport(proxy=f"{proxies_conf.get("http", None)}", verify=False)
+    if proxies_conf.get("https") is not None:
+        proxies["https://"] = httpx.HTTPTransport(proxy=f"{proxies_conf.get("https", None)}", verify=False)
 
     @classmethod
     def gen_real_msToken(cls) -> str:
@@ -67,7 +70,7 @@ class TokenManager:
         }
 
         transport = httpx.HTTPTransport(retries=5)
-        with httpx.Client(transport=transport) as client:
+        with httpx.Client(transport=transport, mounts=cls.proxies) as client:
             try:
                 response = client.post(
                     cls.token_conf["url"], headers=headers, content=payload
@@ -118,7 +121,7 @@ class TokenManager:
         生成请求必带的ttwid (Generate the essential ttwid for requests)
         """
         transport = httpx.HTTPTransport(retries=5)
-        with httpx.Client(transport=transport, proxies=cls.proxies) as client:
+        with httpx.Client(transport=transport, mounts=cls.proxies) as client:
             try:
                 response = client.post(
                     cls.ttwid_conf["url"],
@@ -166,7 +169,7 @@ class TokenManager:
         生成请求必带的odin_tt (Generate the essential odin_tt for requests)
         """
         transport = httpx.HTTPTransport(retries=5)
-        with httpx.Client(transport=transport, proxies=cls.proxies) as client:
+        with httpx.Client(transport=transport, mounts=cls.proxies) as client:
             try:
                 response = client.get(cls.odin_tt_conf["url"])
                 response.raise_for_status()
@@ -272,7 +275,7 @@ class SecUserIdFetcher:
 
         transport = httpx.AsyncHTTPTransport(retries=5)
         async with httpx.AsyncClient(
-                transport=transport, proxies=TokenManager.proxies, timeout=10
+                transport=transport, mounts=TokenManager.proxies, timeout=10
         ) as client:
             try:
                 response = await client.get(url, follow_redirects=True)
@@ -363,7 +366,7 @@ class SecUserIdFetcher:
 
         transport = httpx.AsyncHTTPTransport(retries=5)
         async with httpx.AsyncClient(
-                transport=transport, proxies=TokenManager.proxies, timeout=10
+                transport=transport, mounts=TokenManager.proxies, timeout=10
         ) as client:
             try:
                 response = await client.get(url, follow_redirects=True)
@@ -477,7 +480,7 @@ class AwemeIdFetcher:
         print(f"输入的URL需要重定向: {url}")
         transport = httpx.AsyncHTTPTransport(retries=10)
         async with httpx.AsyncClient(
-                transport=transport, proxies=TokenManager.proxies, timeout=10
+                transport=transport, mounts=TokenManager.proxies, timeout=10
         ) as client:
             try:
                 response = await client.get(url, follow_redirects=True)

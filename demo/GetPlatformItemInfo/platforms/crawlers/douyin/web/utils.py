@@ -73,6 +73,9 @@ path = os.path.abspath(os.path.dirname(__file__))
 # 读取配置文件
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
+    from ....config_utils import merge_config_env
+
+    merge_config_env(config)
 
 
 class TokenManager:
@@ -80,10 +83,11 @@ class TokenManager:
     token_conf = douyin_manager.get("msToken", None)
     ttwid_conf = douyin_manager.get("ttwid", None)
     proxies_conf = douyin_manager.get("proxies", None)
-    proxies = {
-        "http://": proxies_conf.get("http", None),
-        "https://": proxies_conf.get("https", None),
-    }
+    proxies = {}
+    if proxies_conf.get("http") is not None:
+        proxies["http://"] = httpx.HTTPTransport(proxy=f"{proxies_conf.get("http", None)}", verify=False)
+    if proxies_conf.get("https") is not None:
+        proxies["https://"] = httpx.HTTPTransport(proxy=f"{proxies_conf.get("https", None)}", verify=False)
 
     @classmethod
     def gen_real_msToken(cls) -> str:
@@ -107,7 +111,7 @@ class TokenManager:
         }
 
         transport = httpx.HTTPTransport(retries=5)
-        with httpx.Client(transport=transport) as client:
+        with httpx.Client(transport=transport, mounts=cls.proxies) as client:
             try:
                 response = client.post(
                     cls.token_conf["url"], content=payload, headers=headers
@@ -341,7 +345,7 @@ class SecUserIdFetcher:
         try:
             transport = httpx.AsyncHTTPTransport(retries=5)
             async with httpx.AsyncClient(
-                    transport=transport, proxies=TokenManager.proxies, timeout=10
+                    transport=transport, mounts=TokenManager.proxies, timeout=10
             ) as client:
                 response = await client.get(url, follow_redirects=True)
                 # 444一般为Nginx拦截，不返回状态 (444 is generally intercepted by Nginx and does not return status)
@@ -529,7 +533,7 @@ class WebCastIdFetcher:
             # 重定向到完整链接
             transport = httpx.AsyncHTTPTransport(retries=5)
             async with httpx.AsyncClient(
-                    transport=transport, proxies=TokenManager.proxies, timeout=10
+                    transport=transport, mounts=TokenManager.proxies, timeout=10
             ) as client:
                 response = await client.get(url, follow_redirects=True)
                 response.raise_for_status()
