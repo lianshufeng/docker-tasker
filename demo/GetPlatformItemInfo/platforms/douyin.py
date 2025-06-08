@@ -80,6 +80,19 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
     pass
 
 
+# 过滤重复的回复数据
+def filter_duplicate_comments(comments: list[Comment]) -> list[Comment]:
+    # Create a dictionary to store unique comments based on their cid
+    unique_comments = {}
+
+    for comment in comments:
+        if comment.cid not in unique_comments:
+            unique_comments[comment.cid] = comment
+
+    # Return the list of unique comments
+    return list(unique_comments.values())
+
+
 class DouyinPlatformAction(PlatformAction):
 
     def filter(self, url: str) -> bool:
@@ -144,5 +157,11 @@ class DouyinPlatformAction(PlatformAction):
 
         await page_comments(comments=item.comments, video_id=video_id, cursor=skip_comment_count,
                             max_comment_count=max_comment_count)
+
+        # 过滤重复的数据
+        item.comments = filter_duplicate_comments(item.comments)
+
+
+        logger.info(f"comments size: {len(item.comments)}")
 
         return item
