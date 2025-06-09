@@ -2,15 +2,13 @@ import asyncio
 import logging
 import random
 import traceback
+from urllib.parse import urljoin
 
-from pyppeteer import launch
-from pyppeteer.browser import Browser
-from pyppeteer.element_handle import ElementHandle
-from pyppeteer.page import Page
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
 
-# 日志配置，建议你根据生产环境实际需要调整
+# 日志配置
 logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
     level=logging.INFO
@@ -27,9 +25,10 @@ douyin_page_home = 'https://www.douyin.com'
 async def close_login_panel(page: Page, is_exit: bool):
     while True:
         try:
-            parent = await page.querySelector("#login-panel-new")
+            # Playwright 推荐用 locator
+            parent = await page.locator("#login-panel-new").element_handle()
             if parent:
-                span_element = await parent.querySelector('svg')
+                span_element = await parent.query_selector('svg')
                 if span_element:
                     await span_element.click()
                     logger.info("关闭登录面板")
@@ -37,68 +36,56 @@ async def close_login_panel(page: Page, is_exit: bool):
                         break
         except Exception as e:
             logger.info(f"查找或关闭时出错: {e}")
-        await asyncio.sleep(0.1)  # 周期检查
+        await asyncio.sleep(0.1)
 
 
 async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int):
     result.items = []
 
-    # #增强，防止被检测到
-    # await pyppeteer_stealth.stealth(page)
+    # 设置分辨率
+    await page.set_viewport_size({'width': width, 'height': height})
 
-    await page.setViewport({'width': width, 'height': height, 'deviceScaleFactor': 1})
-
-    # 打开新的页面
+    # 打开首页
     await page.goto(douyin_page_home)
 
-    # 等待关闭登录窗口后延迟2秒，防止linux下弹窗
+    # 关闭登录弹窗
     await close_login_panel(page, True)
     await asyncio.sleep(2)
     await page.goto('about:blank')
-
-    # 退回去
-    await page.goBack()
+    await asyncio.sleep(0.3)
+    await page.go_back()
     await close_login_panel(page, True)
 
-    # 异步线程关闭黄口
-    # asyncio.create_task(close_login_panel(page, False))
-
-    # 输入框搜索关键词------------------------------
-    input_element = await page.waitForSelector('[data-e2e="searchbar-input"]', timeout=5000)
+    # 输入关键词
+    input_element = await page.locator('[data-e2e="searchbar-input"]').element_handle(timeout=5000)
     if input_element:
         logger.info(f"搜索框输入: {keyword}")
-        await input_element.click()  # 有些页面要先激活一下输入框
+        await input_element.click()
         await asyncio.sleep(0.5)
-        await input_element.type(keyword, {'delay': 30})
+        await input_element.type(keyword, delay=30)
         await asyncio.sleep(1)
         await input_element.press('Enter')
 
-    # 选择仅过滤视频列表------------------------------
-    video_btn = await page.waitForXPath('//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/span[2]',
-                                        timeout=10000)
+    # 只看视频按钮
+    video_btn = await page.locator(
+        'xpath=//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/span[2]').element_handle(timeout=10000)
     if video_btn:
         logger.info("选择仅过滤视频")
         await video_btn.click()
         await asyncio.sleep(2)
 
-    # 选择过滤时间------------------------------
-    where_btn: ElementHandle = await page.waitForXPath(
-        '//*[@id="search-content-area"]/div/div[1]/div[1]/div/div/div/div/span',
+    # 选择筛选时间
+    where_btn = await page.locator(
+        'xpath=//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div[1]/div/div/span').element_handle(
         timeout=10000)
     if where_btn:
         logger.info("触发筛选按钮")
-        # await page.evaluate('el => {'
-        #                     'el.dispatchEvent(new MouseEvent("mouseenter", {bubbles: true}));'
-        #                     'el.dispatchEvent(new MouseEvent("mouseover", {bubbles: true}));'
-        #                     'el.dispatchEvent(new MouseEvent("mousemove", {bubbles: true}));'
-        #                     '}', where_btn)
-
         await where_btn.hover()
         await asyncio.sleep(1.3)
 
-        # 过滤最近一周
-        week_btn = await page.waitForXPath(
-            '//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/span[2]', timeout=10000)
+        week_btn = await page.locator(
+            'xpath=//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/span[2]').element_handle(
+            timeout=10000)
         if week_btn:
             logger.info("过滤最近1天视频")
             await week_btn.click()
@@ -107,74 +94,63 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
         # 隐藏筛选弹窗
         await where_btn.click()
 
-    # 找到列表项
-    scroll_list_element: ElementHandle = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
+    # 获取列表
+    scroll_list_element: ElementHandle = await page.locator(
+        'xpath=//*[@id="search-result-container"]/div[2]/ul').element_handle(timeout=10000)
     if scroll_list_element:
-        # 延迟处理，防止没有获取边界
         for _ in range(20):
-            scroll_list_element = await page.waitForSelector('[data-e2e="scroll-list"]', timeout=10000)
-            await asyncio.sleep(0.5)
+            if await scroll_list_element.bounding_box() is None:
+                await asyncio.sleep(0.5)
 
-        # 模拟点击空白处，获取焦点
+        # 模拟点击空白处
         logger.info("模拟点击空白处，获取焦点")
-
-        scroll_list_element_content = {'x': 30, 'y': 166}
-        scroll_boxModel = (await scroll_list_element.boxModel())
-        if scroll_boxModel is not None and scroll_boxModel.get('content') is not None and \
-                scroll_boxModel.get('content')[
-                    0] is not None:
-            scroll_list_element_content: dict = (await scroll_list_element.boxModel()).get('content')[0]
-
-        x = scroll_list_element_content['x'] - random.randint(10, 20)
-        y = scroll_list_element_content['y'] + random.randint(10, 30)
-        await  page.mouse.click(x=x, y=y)
+        box = await scroll_list_element.bounding_box()
+        x = (box["x"] if box else 30) - random.randint(10, 20)
+        y = (box["y"] if box else 166) + random.randint(10, 30)
+        await page.mouse.click(x, y)
 
         # 记录当前加载项
-        latest_li_len: int = len(await scroll_list_element.querySelectorAll('li'))
+        latest_li_len = len(await scroll_list_element.query_selector_all('li'))
 
-        # 通过翻页按钮按钮进行翻页操作
+        # 通过 PageDown 翻页
         for _ in range(999):
             await scroll_list_element.press('PageDown')
-            await asyncio.sleep(0.8)  # 间隔时间等待加载
-            now_li_len: int = len(await scroll_list_element.querySelectorAll('li'))
-            # 如果刷新没有新视频
+            await asyncio.sleep(0.8)
+            now_li_len = len(await scroll_list_element.query_selector_all('li'))
             if now_li_len == latest_li_len:
                 await asyncio.sleep(3)
                 await scroll_list_element.press('PageDown')
-                await asyncio.sleep(0.8)  # 间隔时间等待加载
-                if len(await scroll_list_element.querySelectorAll('li')) == latest_li_len:
+                await asyncio.sleep(0.8)
+                if len(await  scroll_list_element.query_selector_all('li')) == latest_li_len:
                     break
             latest_li_len = now_li_len
             logger.info('load items : ' + str(latest_li_len))
-
-            # 目前采集的数量
             if latest_li_len >= max_size:
                 break
 
-        # 开始取出所有的标题与url
-        li_elements: list[ElementHandle] = await scroll_list_element.querySelectorAll('li')
+        # 获取所有标题与 url
+        li_elements = await scroll_list_element.query_selector_all('li')
         li_elements = li_elements[:max_size]
         logger.info('total items : ' + str(len(li_elements)))
         for li in li_elements:
             try:
-                # 获取视频链接
-                a_element: ElementHandle = await li.querySelector('a[href]')
+                a_element = await li.query_selector('a[href]')
                 if a_element:
-                    # 连接地址
-                    href = await page.evaluate('(element) => element.href', a_element)
+                    href = await a_element.get_attribute('href')
+                    full_url = urljoin(page.url, href)
 
-                    # 标题
-                    title_element: ElementHandle = (await a_element.querySelectorAll("div"))[15]
-                    title = await page.evaluate('(element) => element.textContent', title_element)
-                    logger.info(f"{title} -> {href}")
-                    result.items.append(ActionResultItem(url=href, title=title))
-            except Exception as e:
+                    # 取 title
+                    divs = await a_element.query_selector_all("div")
+                    title = ""
+                    if len(divs) > 15:
+                        title = await divs[15].text_content()
+                    logger.info(f"{title} -> {full_url}")
+                    result.items.append(ActionResultItem(url=full_url, title=title))
+            except Exception:
                 continue
 
-        # 取出cookies
-        # 获取所有 cookies
-        cookies = await page.cookies()
-        # 拼接成字符串
+        # cookies
+        cookies = await page.context.cookies()
         cookie_str = '; '.join([f"{c['name']}={c['value']}" for c in cookies])
         result.cookies = cookie_str
 
@@ -183,59 +159,52 @@ class DouyinPlatformAction(PlatformAction):
 
     async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
 
-        # 最大采集数量
         max_size: int = kwargs.get('max_size') or 999
+        proxy: str = kwargs.get('proxy', None)
 
-        # 代理服务器
-        proxy: str | None = kwargs.get('proxy', None)
-
-        chrome: list[str] = getChromeExecutablePath()
+        chrome: list = getChromeExecutablePath()
         chrome_path = chrome[0] if chrome else None
         if chrome_path is None:
             raise RuntimeError("未找到可用的chrome")
 
-        # 保存的结果集
         result: ActionResult = ActionResult()
 
-        args = [
-            '--incognito',  # 无痕
-            '--disable-infobars',  # 取消提示正在被受控制
-            '--no-first-run',  # 跳过首次运行时的欢迎界面和介绍。
-            '--no-default-browser-check',  # 启动时不询问是否将 Chrome 设置为默认浏览器。
-            f'--window-size={width},{height}',  # 这里设置窗口分辨率
-            '--window-position=0,0'  # 这里指定窗口起始坐标
+        args_list = [
+            '--incognito',
+            '--disable-infobars',
+            '--no-first-run',
+            '--no-default-browser-check',
+            f'--window-size={width},{height}',
+            '--window-position=0,0'
         ]
+        if proxy:
+            args_list.append(f'--proxy-server=https={proxy}')
 
-        if proxy is not None:
-            args.append(f'--proxy-server=https={proxy}')
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=False,
+                executable_path=chrome_path,
+                args=args_list,
+            )
+            context = await browser.new_context()
+            page = await context.new_page()
 
-        browser: Browser = await launch(
-            headless=False,  # 无头模式
-            executablePath=chrome_path,  # chrome路径
-            args=args,
-            ignoreDefaultArgs=['--enable-automation'],  # 隐藏提示栏
-        )
+            # 设置 cookies
+            if cookies:
+                cookie_list = [
+                    {'name': k, 'value': v, 'url': douyin_page_home}
+                    for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
+                ]
+                await context.add_cookies(cookie_list)
 
-        page: Page = await browser.newPage()
-        # page = (await browser.pages())[0]  # 不用新页面就不会弹出douyin安装客户端的请求
+            try:
+                await run_work(keyword=keyword, page=page, result=result, max_size=max_size)
+            except Exception as e:
+                logger.error(e)
+                logger.error("Traceback:\n%s", traceback.format_exc())
+                result.success = False
+                result.msg = traceback.format_exc()
+            finally:
+                await browser.close()
 
-        #  cookies
-        if cookies is not None:
-            # 需要恢复为 setCookie 用的格式
-            cookie_list = [
-                {'name': k, 'value': v, 'url': douyin_page_home}
-                for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
-            ]
-            await page.setCookie(*cookie_list)
-
-        try:
-            await run_work(keyword=keyword, page=page, result=result, max_size=max_size)
-        except Exception as e:
-            logger.error(e)
-            logger.error("Traceback:\n%s", traceback.format_exc())
-            result.success = False
-            result.msg = traceback.format_exc()
-        finally:
-            await browser.close()
-
-        return result
+            return result

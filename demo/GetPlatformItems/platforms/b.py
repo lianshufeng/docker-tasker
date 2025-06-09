@@ -1,12 +1,9 @@
 from typing import Any, List, Optional
 import asyncio
 import logging
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
-from pyppeteer import launch
-from pyppeteer.element_handle import ElementHandle
-from pyppeteer.page import Page
-from pyppeteer.browser import Browser
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle
 import datetime
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
@@ -19,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 常量定义
-DEFAULT_VIEWPORT = {'width': 1280, 'height': 800, 'deviceScaleFactor': 1}
+DEFAULT_VIEWPORT = {'width': 1280, 'height': 800}
 PAGE_LOAD_TIMEOUT = 30000  # 30秒
 ELEMENT_TIMEOUT = 5000  # 5秒
 SCROLL_DELAY = 0.5  # 滚动延迟
@@ -30,6 +27,7 @@ class BilibiliScraper:
     def __init__(self):
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
+        self.context = None
 
     async def initialize(self, cookies: str = None):
         """初始化浏览器和页面"""
@@ -37,20 +35,22 @@ class BilibiliScraper:
         if not chrome_paths:
             raise RuntimeError("未找到可用的Chrome浏览器路径")
 
-        self.browser = await launch(
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(
             headless=False,
-            executablePath=chrome_paths[0],
+            executable_path=chrome_paths[0],
             args=[
                 '--incognito',
                 '--disable-infobars',
                 '--disable-blink-features=AutomationControlled',
                 f'--window-size={DEFAULT_VIEWPORT["width"]},{DEFAULT_VIEWPORT["height"]}'
             ],
-            ignoreDefaultArgs=['--enable-automation'],
         )
 
-        self.page = await self.browser.newPage()
-        await self.page.setViewport(DEFAULT_VIEWPORT)
+        self.context = await self.browser.new_context(
+            viewport=DEFAULT_VIEWPORT
+        )
+        self.page = await self.context.new_page()
 
         if cookies:
             await self._set_cookies(cookies)
@@ -69,7 +69,7 @@ class BilibiliScraper:
                 })
 
         if cookie_list:
-            await self.page.setCookie(*cookie_list)
+            await self.context.add_cookies(cookie_list)
 
     async def _safe_evaluate(self, expression: str, element: ElementHandle) -> Any:
         """安全执行页面评估"""
@@ -82,7 +82,7 @@ class BilibiliScraper:
     async def _wait_and_scroll(self, selector: str):
         """等待元素并滚动页面"""
         try:
-            element = await self.page.waitForSelector(selector, timeout=ELEMENT_TIMEOUT)
+            element = await self.page.locator(selector).first.element_handle(timeout=ELEMENT_TIMEOUT)
             if element:
                 # 滚动到元素可见
                 await element.hover()
@@ -98,22 +98,24 @@ class BilibiliScraper:
     async def _extract_video_info(self, row: ElementHandle) -> Optional[ActionResultItem]:
         """提取单个视频信息"""
         try:
-            # 获取视频链接
-            a_element = await row.querySelector('a[href]')
+            a_element = await row.query_selector('a[href]')
             if not a_element:
                 return None
 
-            href = await self._safe_evaluate('(el) => el.href', a_element)
+            href = await a_element.get_attribute('href')
             if not href:
                 return None
 
-            # 获取视频标题
+            # 取出具体的地址
+            full_url = urljoin(self.page.url, href)
+
             title = ""
-            title_element = await row.querySelector('[class*="video-card__info--tit"]')
+            title_element = await row.query_selector('[class*="video-card__info--tit"]')
             if title_element:
-                title = await self._safe_evaluate('(el) => el.textContent.trim()', title_element)
-            logger.info(f"{title}: {href}")
-            return ActionResultItem(url=href, title=title)
+                title = await title_element.text_content()
+                title = title.strip() if title else ""
+            logger.info(f"{title}: {full_url}")
+            return ActionResultItem(url=full_url, title=title)
 
         except Exception as e:
             logger.warning(f"提取视频信息失败: {str(e)}")
@@ -128,7 +130,7 @@ class BilibiliScraper:
         if not scroll_list:
             return False
 
-        video_items = await scroll_list.querySelectorAll('[class*="video-list-item"]')
+        video_items = await scroll_list.query_selector_all('[class*="video-list-item"]')
         if not video_items:
             return False
 
@@ -138,6 +140,8 @@ class BilibiliScraper:
             video_info = await self._extract_video_info(row)
             if video_info:
                 result.items.append(video_info)
+                if len(result.items) >= max_size:
+                    break
 
         return True
 
@@ -146,11 +150,9 @@ class BilibiliScraper:
         encoded_keyword = quote(keyword)
         now = datetime.datetime.now()
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        startTimes = int(start_of_day.timestamp()) # 当天开始时间
-
-        now = datetime.datetime.now()
+        startTimes = int(start_of_day.timestamp())
         end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
-        endTimes = int(end_of_day.timestamp()) # 当天结束时间
+        endTimes = int(end_of_day.timestamp())
 
         url = f"https://search.bilibili.com/video?keyword={encoded_keyword}&order=pubdate&pubtime_begin_s={startTimes}&pubtime_end_s={endTimes}"
 
@@ -163,7 +165,7 @@ class BilibiliScraper:
                 return
 
             # 处理分页
-            while True:
+            while True and len(result.items) < max_size:
                 next_button = await self._get_next_button()
                 if not next_button:
                     break
@@ -180,16 +182,16 @@ class BilibiliScraper:
     async def _get_next_button(self) -> Optional[ElementHandle]:
         """获取下一页按钮"""
         try:
-            pagination = await self.page.querySelector('[class*="pagenation"]')
+            pagination = await self.page.query_selector('[class*="pagenation"]')
             if not pagination:
                 return None
 
-            buttons = await pagination.querySelectorAll('button')
+            buttons = await pagination.query_selector_all('button')
             if len(buttons) < 2:
                 return None
 
             next_button = buttons[-1]  # 最后一个按钮是"下一页"
-            class_name = await self._safe_evaluate('(el) => el.className', next_button)
+            class_name = await next_button.get_attribute('class')
 
             if class_name and 'disabled' not in class_name.lower():
                 return next_button
@@ -203,6 +205,8 @@ class BilibiliScraper:
         """关闭浏览器"""
         if self.browser:
             await self.browser.close()
+        if hasattr(self, 'playwright'):
+            await self.playwright.stop()
 
 
 class BPlatformAction(PlatformAction):
@@ -219,7 +223,7 @@ class BPlatformAction(PlatformAction):
             await scraper.scrape_all_pages(keyword, result, max_size=max_size)
 
             # 获取cookies
-            cookies = await scraper.page.cookies()
+            cookies = await scraper.context.cookies()
             result.cookies = '; '.join([f"{c['name']}={c['value']}" for c in cookies])
 
         except Exception as e:
