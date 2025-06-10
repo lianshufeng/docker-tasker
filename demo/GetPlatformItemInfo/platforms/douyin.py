@@ -64,7 +64,7 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
             # 点赞
             comment_ret.digg_count = comment.get("digg_count")
 
-            comment_ret.uid = comment.get("user").get("uid")
+            comment_ret.uid = comment.get("user").get("sec_uid")
             comment_ret.nickname = comment.get("user").get("nickname")
 
             comments.append(comment_ret)
@@ -149,7 +149,7 @@ class DouyinPlatformAction(PlatformAction):
 
         # ------------------ 作者信息
         author: dict = aweme_detail.get("author")
-        item.author_uid = author.get("uid")
+        item.author_uid = author.get("sec_uid")
         item.author_nickname = author.get("nickname")
 
         # ------------------ 评论数据
