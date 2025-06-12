@@ -5,15 +5,25 @@ from celery.result import AsyncResult
 from fastapi import FastAPI, Body, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.worker import app as celery_app, run_docker_task
+from app.worker import app as celery_app, run_code_task, run_docker_task
 
 app = FastAPI(title="分布式任务接口文档")
 
 
-# 添加任务
+# 提取参数
+def get_parameter(data: dict):
+    max_retries = data.get('max_retries', 1)  # 最大重试次数
+    retry_delay = data.get('retry_delay', 5)  # 重试延迟
+    queue = data.get('queue', "celery")  # 默认队列名
+    countdown = data.get('countdown', None)  # 倒计时执行 (秒)
+    expires = data.get('expires', None)  # 过期时间 (秒)
+    callback = data.get('callback', None)  # 回调地址
+    return max_retries, retry_delay, queue, countdown, expires, callback
 
-@app.post("/api/add", tags=["task"])
-def add_task(data: dict = Body(..., example={
+
+# 添加任务
+@app.post("/api/run_docker_task", tags=["run_docker_task"])
+def run_docker(data: dict = Body(..., example={
     "image": "python:3.13-slim",
     "command": ["python", "-c", "print('Hello'); print('===result-data==='); print(123);print('===result-data===');"],
     "container_kwargs": {
@@ -25,19 +35,16 @@ def add_task(data: dict = Body(..., example={
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
-    "countdown": 3,
+    "countdown": 1, #延迟执行
     "expires": 60 * 60 * 2,
     "callback": None  # 回调的地址，注意必须是一个post请求
 })):
     image = data.get('image')
     command = data.get('command')
     container_kwargs: dict[str, Any] = data.get('container_kwargs', {})  # 容器的其他参数
-    max_retries = data.get('max_retries', 1)  # 最大重试次数
-    retry_delay = data.get('retry_delay', 5)  # 重试延迟
-    queue = data.get('queue', "celery")  # 默认队列名
-    countdown = data.get('countdown', None)  # 倒计时执行 (秒)
-    expires = data.get('expires', None)  # 过期时间 (秒)
-    callback = data.get('callback', None)  # 回调地址
+
+    # 提取通用参数
+    max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
 
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
@@ -46,6 +53,38 @@ def add_task(data: dict = Body(..., example={
         "image": image,
         "command": command,
         "container_kwargs": container_kwargs,
+        "max_retries": max_retries,
+        "retry_delay": retry_delay,
+        "callback": callback
+    },
+        retry=True,
+        max_retries=max_retries,
+        queue=queue,  # 队列名
+        countdown=countdown,
+        expires=expires,
+    )
+    return {"task_id": task.id}
+
+
+@app.post("/api/run_code_task", tags=["run_code_task"])
+def run_code(data: dict = Body(..., example={
+    "code": "print('Hello'); print('===result-data==='); print(1+1);print('===result-data===');",
+    "queue": "celery",
+    "max_retries": 1,
+    "retry_delay": 5,
+    "countdown": 1, #延迟执行
+    "expires": 60 * 60 * 2,
+    "callback": None  # 回调的地址，注意必须是一个post请求
+})):
+    code = data.get('code', None)
+    if not code:
+        raise HTTPException(status_code=500, detail="代码不能为空")
+
+    # 提取通用参数
+    max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
+
+    task = run_code_task.apply_async(kwargs={
+        "code": code,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
         "callback": callback

@@ -1,7 +1,9 @@
 import logging
 import os
 import re
+import sys
 import traceback
+from io import StringIO
 from typing import Any
 
 import docker
@@ -22,6 +24,8 @@ app.config_from_object('conf.celery_config')
 
 # Docker client，模块级单例
 docker_client = docker.from_env()
+
+result_data_word: str = "===result-data==="
 
 
 def docker_login():
@@ -45,6 +49,37 @@ def docker_login():
 docker_login()
 
 
+def make_result(success: bool = False,
+                attempt: int | None = None,
+                result: Any | None = None,
+                callback: str | None = None,
+                error: str | None = None,
+                traceback: str | None = None):
+    return {key: value for key, value in {
+        "success": success,
+        "attempt": attempt,
+        "result": result,
+        "callback": callback,
+        "error": error,
+        "traceback": traceback
+    }.items() if value is not None}
+
+
+# 获取执行结果集
+def get_execute_result(ret: str):
+    # 解析输出结果
+    result = ""
+    matches = re.findall(rf"{result_data_word}\s*([\s\S]*?)\s*{result_data_word}", ret)
+    if matches:
+        # 可以返回所有，或者只返回第一个数据块
+        result = "\n\n".join(m.strip() for m in matches if m.strip())
+    elif ret.strip():
+        result = ret.strip().splitlines()[-1]
+    else:
+        result = ""
+    return result
+
+
 class CallbackTask(Task):
     def on_success(self, retval, task_id, args, kwargs):
         callback = kwargs.get('callback')
@@ -64,12 +99,12 @@ class CallbackTask(Task):
 @app.task(bind=True, base=CallbackTask)
 def run_docker_task(self,
                     image: str,  # Docker 镜像名
-                    command: list,  # 容器执行的命令行
+                    command: list[str],  # 容器执行的命令行
                     container_kwargs: dict[str, Any],  # 容器的运行参数
                     max_retries: int = 0,
                     retry_delay: int = 5,
                     callback: str = None,  # 回调url，任务执行完成后回调的地址
-                    ):
+                    ) -> dict[str, Any]:
     """
     在 Docker 容器中运行指定命令，支持失败重试。
     """
@@ -103,25 +138,15 @@ def run_docker_task(self,
         logger.info(f"[TASK {self.request.id}] Docker output:\n{logs}")
 
         # 解析输出结果
-        result = ""
-        # 用正则查找所有 ===result-data===...===result-data=== 中间内容，支持多组
-        matches = re.findall(r"===result-data===\s*([\s\S]*?)\s*===result-data===", logs)
-        if matches:
-            # 可以返回所有，或者只返回第一个数据块
-            result = "\n\n".join(m.strip() for m in matches if m.strip())
-        elif logs.strip():
-            result = logs.strip().splitlines()[-1]
-        else:
-            result = ""
+        result = get_execute_result(logs)
 
-        # 可根据 exit_result 判断是否成功，也可以返回日志内容
-        return {
-            "success": exit_result.get("StatusCode", 1) == 0,
-            "attempt": attempt,
-            "result": result,
-            "status_code": exit_result.get("StatusCode"),
-            "callback": callback
-        }
+        # 返回 Result 实例
+        return make_result(
+            success=exit_result.get("StatusCode", 1) == 0,
+            attempt=attempt,
+            result=result,
+            callback=callback
+        )
 
     except Exception as e:
         logger.warning(f"[TASK {self.request.id}] Exception on attempt {attempt}: {e}")
@@ -130,12 +155,12 @@ def run_docker_task(self,
             raise self.retry(exc=e, countdown=retry_delay, max_retries=max_retries)
         else:
             logger.error(f"[TASK {self.request.id}] Failed after {attempt} attempts: {e}")
-            return {
-                "success": False,
-                "attempt": attempt,
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
+            return make_result(
+                success=False,
+                attempt=attempt,
+                error=str(e),
+                traceback=traceback.format_exc()
+            )
 
     finally:
         # 强制清理容器
@@ -145,3 +170,57 @@ def run_docker_task(self,
                 logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
                 logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
+
+
+@app.task(bind=True, base=CallbackTask)
+def run_code_task(self,
+                  code: str,  # 容器执行的命令行
+                  max_retries: int = 0,
+                  retry_delay: int = 5,
+                  callback: str = None,  # 回调url，任务执行完成后回调的地址
+                  ) -> dict[str, Any]:
+    """
+    执行传入的 Python 代码，并返回执行结果。支持失败重试。
+    """
+    attempt = self.request.retries + 1  # 获取当前重试次数
+
+    try:
+        # 取出print的日志
+        captured_output = StringIO()
+        sys.stdout = captured_output
+
+        # 隔离环境变量
+        sandbox_globals = {}
+        sandbox_locals = {}
+        exec(code, sandbox_globals, sandbox_locals)
+
+        sys.stdout = sys.__stdout__
+        logs = captured_output.getvalue()
+        print(logs)
+
+        # 解析输出结果
+        result = get_execute_result(logs)
+
+        return make_result(
+            success=True,
+            attempt=attempt,
+            result=result,
+            callback=callback
+        )
+    except Exception as e:
+        logger.warning(f"[TASK {self.request.id}] Exception on attempt {attempt}: {e}")
+        error = str(e)
+        traceback_info = traceback.format_exc()
+
+        # 如果失败且未超过最大重试次数，进行重试
+        if attempt <= max_retries:
+            raise self.retry(exc=e, countdown=retry_delay, max_retries=max_retries)
+
+        # 如果失败且超过最大重试次数，返回错误信息
+        return make_result(
+            success=False,
+            attempt=attempt,
+            error=error,
+            traceback=traceback_info,
+            callback=callback
+        )
