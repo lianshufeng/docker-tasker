@@ -5,7 +5,7 @@ from celery.result import AsyncResult
 from fastapi import FastAPI, Body, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from app.worker import app as celery_app, run_code_task, run_docker_task
+from app.worker import app as celery_app, run_code_task, run_docker_task, run_process_message
 
 app = FastAPI(title="分布式任务接口文档")
 
@@ -35,7 +35,7 @@ def run_docker(data: dict = Body(..., example={
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
-    "countdown": 1, #延迟执行
+    "countdown": 1,  # 延迟执行
     "expires": 60 * 60 * 2,
     "callback": None  # 回调的地址，注意必须是一个post请求
 })):
@@ -72,7 +72,7 @@ def run_code(data: dict = Body(..., example={
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
-    "countdown": 1, #延迟执行
+    "countdown": 1,  # 延迟执行
     "expires": 60 * 60 * 2,
     "callback": None  # 回调的地址，注意必须是一个post请求
 })):
@@ -87,6 +87,40 @@ def run_code(data: dict = Body(..., example={
         "code": code,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
+        "callback": callback
+    },
+        retry=True,
+        max_retries=max_retries,
+        queue=queue,  # 队列名
+        countdown=countdown,
+        expires=expires,
+    )
+    return {"task_id": task.id}
+
+
+@app.post("/api/process_message", tags=["process_message"])
+def process_message(data: dict = Body(..., example={
+    "message_content": {
+        "code": 1,
+        "msg": "1111"
+    },
+    "queue": "celery",
+    "max_retries": 1,
+    "retry_delay": 5,
+    "countdown": 1,  # 延迟执行
+    "expires": 60 * 60 * 2,
+    "callback": None  # 回调的地址，注意必须是一个post请求
+})):
+    # 消息内容
+    message_content = data.get('message_content', None)
+    if not message_content:
+        raise HTTPException(status_code=500, detail="消息内容不能为空")
+
+    # 回调地址
+    max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
+
+    task = run_process_message.apply_async(kwargs={
+        "message_content": message_content,
         "callback": callback
     },
         retry=True,

@@ -224,3 +224,12 @@ def run_code_task(self,
             traceback=traceback_info,
             callback=callback
         )
+
+
+# 通用的任务处理函数
+@app.task(bind=True, base=CallbackTask)
+def run_process_message(
+        self,
+        message_content: dict[str, Any],
+        callback: str = None) -> dict[str, Any]:
+    pass
