@@ -40,11 +40,12 @@ async def main():
             result: ActionResult = await platform_action.action(keyword=keyword, cookies=cookies, **_config)
             for it in result.items:
                 items.append(Item(title=it.title, url=it.url))
-            Result(success=result.success, msg=result.msg, items=items, cookies=result.cookies).print()
+            Result(success=result.success, msg=result.msg, platform=platform_name, items=items,
+                   cookies=result.cookies).print()
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())
-            Result(success=False, msg=f"调用接口出现异常").print()
+            Result(success=False, msg=f"调用接口出现异常", platform=platform_name).print()
 
 
 if __name__ == '__main__':

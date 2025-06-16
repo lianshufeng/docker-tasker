@@ -145,7 +145,7 @@ class DouyinPlatformAction(PlatformAction):
         # 取出一个最合适的视频(分辨率+视频编码)
         video_item: dict = find_best_video(bit_rate)
         # 取出一个可以播放的视频
-        item.video_url = find_first_playable_video(video_item.get("play_addr").get("url_list"))
+        item.video_url,item.video_duration = find_first_playable_video(video_item.get("play_addr").get("url_list"))
 
         # ------------------ 作者信息
         author: dict = aweme_detail.get("author")

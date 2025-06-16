@@ -43,6 +43,9 @@ class Item(BaseModel):
     # 视频的播放地址
     video_url: str | None = None
 
+    # 视频时长,单位秒
+    video_duration: float | None = None
+
     # 音频的播放地址
     audio_url: str | None = None
 

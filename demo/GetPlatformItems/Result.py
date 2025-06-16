@@ -18,6 +18,9 @@ class Result(BaseModel):
     # 消息
     msg: str | None = None
 
+    # 平台名
+    platform: str | None = None
+
     # items
     items: List[Item] | None = None
 

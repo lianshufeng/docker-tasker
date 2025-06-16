@@ -6,7 +6,7 @@ import ffmpeg
 from pydantic import BaseModel
 
 
-def is_video_playable(video_url: str, header: dict[str, str] = None) -> bool:
+def is_video_playable(video_url: str, header: dict[str, str] = None) -> float:
     """
     判断给定视频 url 是否可以正常打开和播放
     """
@@ -26,22 +26,24 @@ def is_video_playable(video_url: str, header: dict[str, str] = None) -> bool:
                 float(stream.get('height', 0)) > 0 and
                 float(stream.get('duration', 0)) > 0
         ):
-            return True
-        return False
+            return float(stream.get('duration', 0))
+        return -1
     except Exception:
-        return False
+        return -1
 
 
 # 寻找第一个可以播放的链接
-def find_first_playable_video(url_list: list[str]) -> str | None:
+def find_first_playable_video(url_list: list[str]) -> [str, float]:
     for url in reversed(url_list):
         header: dict[str, str] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
             "Referer": url
         }
+        # 长度秒
+        duration: float = is_video_playable(url, header)
         if is_video_playable(url, header):
-            return url
-    return None
+            return url, duration
+    return None, None
 
 
 def getChromeExecutablePath() -> list[str]:
@@ -121,6 +123,9 @@ class ActionResultItem(BaseModel):
 
     # 视频的播放地址
     video_url: str | None = None
+
+    # 视频时长,单位秒
+    video_duration: float | None = None
 
     # 音频的播放地址
     audio_url: str | None = None
