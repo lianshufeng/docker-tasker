@@ -71,11 +71,11 @@ class BaseCrawler:
             # self.proxies = proxies
             self.proxies = {}
             if proxies.get("http://") is not None:
-                self.proxies["http://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("http://", None)}", verify=False)
+                self.proxies["http://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("http://", None)}",
+                                                                   verify=False)
             if proxies.get("https://") is not None:
-                self.proxies["https://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("https://", None)}", verify=False)
-
-
+                self.proxies["https://"] = httpx.AsyncHTTPTransport(proxy=f"{proxies.get("https://", None)}",
+                                                                    verify=False)
 
             # [f"{k}://{v}" for k, v in proxies.items()]
         else:
@@ -141,7 +141,7 @@ class BaseCrawler:
         Returns:
             dict: 解析后的JSON数据 (Parsed JSON data)
         """
-        response = await self.post_fetch_data(endpoint, params, data)
+        response = await self.post_fetch_data(url=endpoint, params=params, data=data)
         return self.parse_json(response)
 
     def parse_json(self, response: Response) -> dict:
@@ -222,7 +222,7 @@ class BaseCrawler:
             except APIError as e:
                 e.display_error()
 
-    async def post_fetch_data(self, url: str, params: dict = {}, data=None):
+    async def post_fetch_data(self, url: str, params: dict = {}, data=None, headers: dict = {}) -> dict:
         """
         获取POST端点数据 (Get POST endpoint data)
 
@@ -239,6 +239,7 @@ class BaseCrawler:
                     url,
                     json=None if not params else dict(params),
                     data=None if not data else data,
+                    headers=None if not headers else headers,
                     follow_redirects=True
                 )
                 if not response.text.strip() or not response.content:

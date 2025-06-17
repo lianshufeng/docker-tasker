@@ -103,7 +103,12 @@ class DouyinPlatformAction(PlatformAction):
         return "douyin"
 
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
-        pass
+
+        ret = await _douyin_web_crawler.fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
+
+        print(ret)
+
+        return False
 
     # 执行任务
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
@@ -148,7 +153,7 @@ class DouyinPlatformAction(PlatformAction):
         # 取出一个最合适的视频(分辨率+视频编码)
         video_item: dict = find_best_video(bit_rate)
         # 取出一个可以播放的视频
-        item.video_url,item.video_duration = find_first_playable_video(video_item.get("play_addr").get("url_list"))
+        item.video_url, item.video_duration = find_first_playable_video(video_item.get("play_addr").get("url_list"))
 
         # ------------------ 作者信息
         author: dict = aweme_detail.get("author")
@@ -163,7 +168,6 @@ class DouyinPlatformAction(PlatformAction):
 
         # 过滤重复的数据
         item.comments = filter_duplicate_comments(item.comments)
-
 
         logger.info(f"comments size: {len(item.comments)}")
 

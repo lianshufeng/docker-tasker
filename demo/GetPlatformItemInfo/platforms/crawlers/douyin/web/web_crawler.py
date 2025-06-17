@@ -36,6 +36,8 @@
 import asyncio  # 异步I/O
 import os  # 系统操作
 import time  # 时间操作
+import urllib
+import random
 from urllib.parse import urlencode  # URL编码
 
 import yaml  # 配置文件
@@ -48,7 +50,7 @@ from ...douyin.web.models import (
     BaseRequestModel, LiveRoomRanking, PostComments,
     PostCommentsReply, PostDetail,
     UserProfile, UserCollection, UserLike, UserLive,
-    UserLive2, UserMix, UserPost
+    UserLive2, UserMix, UserPost, PostCommentPublish
 )
 # 抖音应用的工具类
 from ...douyin.web.utils import (AwemeIdFetcher,  # Aweme ID获取
@@ -67,6 +69,7 @@ path = os.path.abspath(os.path.dirname(__file__))
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
     from ....config_utils import merge_config_env
+
     merge_config_env(config)
 
 
@@ -234,6 +237,29 @@ class DouyinWebCrawler:
                 DouyinAPIEndpoints.POST_COMMENT, params.dict(), kwargs["headers"]["User-Agent"]
             )
             response = await crawler.fetch_get_json(endpoint)
+        return response
+
+    # 指定视频的评论进行回复
+    async def fetch_comment_publish(self, aweme_id: str, reply_id: str, text: str):
+        kwargs = await self.get_douyin_headers()
+        base_crawler = BaseCrawler(proxies=kwargs["proxies"], crawler_headers=kwargs["headers"])
+        async with base_crawler as crawler:
+            params = PostCommentPublish(aweme_id=aweme_id, comment_send_celltime=random.randint(3000, 60000),
+                                        comment_video_celltime=random.randint(3000, 60000), reply_id=reply_id,
+                                        text=urllib.parse.quote(text))
+            endpoint = BogusManager.xb_model_2_endpoint(
+                DouyinAPIEndpoints.POST_COMMENT_PUBLISH, params.dict(), kwargs["headers"]["User-Agent"]
+            )
+
+            # 参数
+            param_str = "&".join([f"{k}={v}" for k, v in params.model_dump().items()])
+
+            headers = {
+                "x-secsdk-csrf-token": "DOWNGRADE",
+            }
+
+            response = await crawler.post_fetch_data(url=endpoint, params=params.model_dump(), data=param_str,
+                                                     headers=headers)
         return response
 
     # 获取指定视频的评论回复数据

@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from config import platform_items, make_platform_from_type
+from Result import Result
 from platforms.base import PlatformAction
 
 # 日志配置，建议你根据生产环境实际需要调整
@@ -35,12 +36,6 @@ def _parse_args() -> dict:
     # 回复内容
     parser.add_argument("-text", type=str, default=None, help=f"回复评论的内容", required=True)
 
-    # cookies
-    parser.add_argument("-c", type=str, default=None, help="cookies", required=True)
-
-    # 代理
-    parser.add_argument("--proxy", type=str, default=None, help="代理服务器", required=False)
-
     return parser.parse_args().__dict__
 
 
@@ -56,9 +51,9 @@ async def main():
 
     platform_action: PlatformAction = make_platform_from_type(platform_name)
 
-    platform_action.comment_publish(_id=_id, cid=cid, text=text, **_config)
+    success: bool = await platform_action.comment_publish(_id=_id, cid=cid, text=text)
 
-    pass
+    Result(success=success, items=None).print()
 
 
 if __name__ == '__main__':

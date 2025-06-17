@@ -17,8 +17,8 @@ def merge_config_env(config: dict[str, dict]):
             it['proxies']['http'] = proxy
             it['proxies']['https'] = proxy
         if cookie is not None:
-            it['headers']['cookie'] = cookie
-
+            it['headers']['Cookie'] = cookie
+    pass
 
 # 合并dict的配置文件
 # def merge_config_env(config: dict, prefix=""):

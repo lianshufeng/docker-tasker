@@ -1,5 +1,7 @@
+import urllib
 from typing import Any, List
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
 
 from ...douyin.web.utils import TokenManager, VerifyFpManager
 
@@ -196,6 +198,20 @@ class PostComments(BaseRequestModel):
     rcFT: str = ""
 
 
+class PostCommentPublish(BaseRequestModel):
+    aweme_id: str  # 视频id
+    comment_send_celltime: int  # 评论发送的时间戳（可能是当前时间，单位为毫秒）。
+    comment_video_celltime: int  # 视频播放时间戳。
+    reply_id:str # 回复的评论 ID
+    text: str # 评论内容，需要进行 URL 编码。
+    text_extra: str = urllib.parse.quote("[]") #可能是额外的参数，如数组等，通常是 []（空数组）
+
+
+
+    one_level_comment_rank: int = 5  # 评论等级，通常是一个整数。
+    paste_edit_method: str = "non_paste"  # ：评论编辑方式，通常是 non_paste。
+
+
 class PostCommentsReply(BaseRequestModel):
     item_id: str
     comment_id: str
@@ -293,4 +309,3 @@ class URL_List(BaseModel):
         "https://test.example.com/yyyyy/",
         "https://test.example.com/zzzzz/"
     ]
-
