@@ -1,6 +1,7 @@
 # 定义并解析命令行参数。
 import argparse
 
+from platforms.base import PlatformAction
 from platforms.b import BPlatformAction
 from platforms.douyin import DouyinPlatformAction
 from platforms.kuaishou import KuaishouPlatformAction
@@ -13,6 +14,14 @@ def make_platform(url: str):
     for platform in platform_items:
         p = platform()
         if p.filter(url):
+            return p
+    return None
+
+
+def make_platform_from_type(_type: str) -> PlatformAction | None:
+    for platform in platform_items:
+        p = platform()
+        if p.type() == _type:
             return p
     return None
 

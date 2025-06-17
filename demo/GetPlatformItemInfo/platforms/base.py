@@ -150,6 +150,9 @@ class PlatformAction(BaseModel):
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         pass
 
+    async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
+        pass
+
     # 取出平台类型
     def type(self) -> str | None:
         pass

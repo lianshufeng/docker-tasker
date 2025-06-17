@@ -102,6 +102,9 @@ class DouyinPlatformAction(PlatformAction):
     def type(self):
         return "douyin"
 
+    async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
+        pass
+
     # 执行任务
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         # 返回对象
