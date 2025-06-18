@@ -54,20 +54,24 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
         # 当前游标
         cursor: int = comments_dict.get("cursor")
 
-        for comment in comments_dict.get("comments"):
-            comment_ret: Comment = Comment()
+        # 取出评论
+        comments: list | None = comments_dict.get("comments", None)
 
-            comment_ret.cid = comment.get("cid")
-            comment_ret.text = comment.get("text")
-            # 创建时间
-            comment_ret.create_time = comment.get("create_time")
-            # 点赞
-            comment_ret.digg_count = comment.get("digg_count")
+        if comments is not None and len(comments) > 0:
+            for comment in comments_dict.get("comments"):
+                comment_ret: Comment = Comment()
 
-            comment_ret.uid = comment.get("user").get("sec_uid")
-            comment_ret.nickname = comment.get("user").get("nickname")
+                comment_ret.cid = comment.get("cid")
+                comment_ret.text = comment.get("text")
+                # 创建时间
+                comment_ret.create_time = comment.get("create_time")
+                # 点赞
+                comment_ret.digg_count = comment.get("digg_count")
 
-            comments.append(comment_ret)
+                comment_ret.uid = comment.get("user").get("sec_uid")
+                comment_ret.nickname = comment.get("user").get("nickname")
+
+                comments.append(comment_ret)
 
         logger.info("page_comments : %s/%s", cursor, total)
 

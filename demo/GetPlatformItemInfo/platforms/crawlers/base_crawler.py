@@ -144,6 +144,67 @@ class BaseCrawler:
         response = await self.post_fetch_data(url=endpoint, params=params, data=data)
         return self.parse_json(response)
 
+
+    async def make_head_request(self, url: str, cookie_string: str, header: dict = None) -> dict:
+        """获取HEAD请求响应头 (Get HEAD request response headers)
+
+        Args:
+            url (str): 目标 URL
+            cookie_string (str): 请求的 Cookie 字符串
+            header (dict, optional): 额外的请求头，默认值为 None
+
+        Returns:
+            dict: 包含状态码、状态信息、响应头等的字典
+        """
+        # 默认请求头
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Cookie': cookie_string,
+            'Authority': 'creator.douyin.com',
+            'Priority': 'u=1, i',
+            'Referer': 'https://creator.douyin.com/creator-micro/home',
+            'Sec-Ch-Ua': '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'X-Secsdk-Csrf-Request': '1',
+            'X-Secsdk-Csrf-Version': '1.2.22',
+        }
+
+        # 如果传入了header，则覆盖默认的headers
+        if header:
+            headers.update(header)
+
+        try:
+            # 发起HEAD请求
+            response = await self.aclient.head(url, headers=headers)
+            # 获取响应头
+            headers_dict = {key: value for key, value in response.headers.items()}
+
+            fft = {
+                'status': response.status_code,
+                'text': response.text,
+                'headers': headers_dict,
+                'ok': response.is_success
+            }
+            return fft
+        except httpx.RequestError as error:
+            logger.error(f"HEAD请求失败: {error}")
+            raise APIConnectionError(f"HEAD请求失败: {str(error)}")
+        except httpx.HTTPStatusError as error:
+            self.handle_http_status_error(error, url, 1)
+        except APIError as e:
+            e.display_error()
+
+
     def parse_json(self, response: Response) -> dict:
         """解析JSON响应对象 (Parse JSON response object)
 

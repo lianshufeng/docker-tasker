@@ -244,19 +244,43 @@ class DouyinWebCrawler:
         kwargs = await self.get_douyin_headers()
         base_crawler = BaseCrawler(proxies=kwargs["proxies"], crawler_headers=kwargs["headers"])
         async with base_crawler as crawler:
-            params = PostCommentPublish(aweme_id=aweme_id, comment_send_celltime=random.randint(3000, 60000),
-                                        comment_video_celltime=random.randint(3000, 60000), reply_id=reply_id,
-                                        text=urllib.parse.quote(text))
+            cookie: str = kwargs.get('headers').get('Cookie')
+
+            # 取出
+            csrf_token_res_header = await crawler.make_head_request(
+                'https://creator.douyin.com/web/api/media/anchor/search',
+                cookie)
+            csrf_token_res = csrf_token_res_header.get('headers').get('x-ware-csrf-token')
+
+            comment_publish_dict = {
+                "aweme_id": aweme_id,
+                "comment_send_celltime": random.randint(3000, 60000),
+                "comment_video_celltime": random.randint(3000, 60000),
+                "reply_id": reply_id,
+                "text": urllib.parse.quote(text),
+                "text_extra": urllib.parse.quote("[]"),
+                "one_level_comment_rank": random.randint(3, 10),
+                "paste_edit_method": "non_paste"
+            }
+
+            params = PostCommentPublish(**comment_publish_dict)
+            # params = PostCommentPublish(aweme_id=aweme_id, comment_send_celltime=random.randint(3000, 60000),
+            #                             comment_video_celltime=random.randint(3000, 60000), reply_id=reply_id,
+            #                             text=urllib.parse.quote(text))
             endpoint = BogusManager.xb_model_2_endpoint(
                 DouyinAPIEndpoints.POST_COMMENT_PUBLISH, params.dict(), kwargs["headers"]["User-Agent"]
             )
 
             # 参数
-            param_str = "&".join([f"{k}={v}" for k, v in params.model_dump().items()])
+            param_str = "&".join([f"{k}={v}" for k, v in comment_publish_dict.items()])
 
             headers = {
-                "x-secsdk-csrf-token": "DOWNGRADE",
+                "x-secsdk-csrf-token": csrf_token_res,
+                "referer": f"https://www.douyin.com/video/{aweme_id}",
             }
+
+            #        'X-Secsdk-Csrf-Token': csrfToken,
+
 
             response = await crawler.post_fetch_data(url=endpoint, params=params.model_dump(), data=param_str,
                                                      headers=headers)
