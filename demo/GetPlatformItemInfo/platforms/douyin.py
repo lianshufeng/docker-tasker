@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import re
+import traceback
 
 from douyin_tiktok_scraper.scraper import Scraper
 
@@ -55,29 +56,39 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
         cursor: int = comments_dict.get("cursor")
 
         # 取出评论
-        comments: list | None = comments_dict.get("comments", None)
+        comments_list: list | None = comments_dict.get("comments", None)
 
-        if comments is not None and len(comments) > 0:
-            for comment in comments_dict.get("comments"):
-                comment_ret: Comment = Comment()
+        if comments_list is not None and len(comments_list) > 0:
+            for comment in comments_list:
+                try:
+                    if isinstance(comment, dict) == False:
+                        comment = comment.model_dump()
 
-                comment_ret.cid = comment.get("cid")
-                comment_ret.text = comment.get("text")
-                # 创建时间
-                comment_ret.create_time = comment.get("create_time")
-                # 点赞
-                comment_ret.digg_count = comment.get("digg_count")
+                    comment_ret: Comment = Comment()
 
-                comment_ret.uid = comment.get("user").get("sec_uid")
-                comment_ret.nickname = comment.get("user").get("nickname")
+                    comment_ret.cid = comment.get("cid")
+                    comment_ret.text = comment.get("text")
+                    # 创建时间
+                    comment_ret.create_time = comment.get("create_time")
+                    # 点赞
+                    comment_ret.digg_count = comment.get("digg_count")
 
-                comments.append(comment_ret)
+                    # 兼容框架错误的匹配
+                    user = comment.get("user")
+                    if user is not None:
+                        comment_ret.uid = user.get("sec_uid")
+                        comment_ret.nickname = user.get("nickname")
+
+                    comments.append(comment_ret)
+                except Exception as e:
+                    logger.error(e)
+                    logger.error("Traceback:\n%s", traceback.format_exc())
 
         logger.info("page_comments : %s/%s", cursor, total)
 
         #  还有数据，可以继续翻页
         if comments_dict.get("has_more") == 1 and (max_comment_count is not None and len(comments) < max_comment_count):
-            await asyncio.sleep(random.randint(800, 2000) / 1000)
+            await asyncio.sleep(random.randint(300, 1500) / 1000)
             await page_comments(comments=comments, video_id=video_id, cursor=cursor,
                                 max_comment_count=max_comment_count)
 
@@ -110,7 +121,9 @@ class DouyinPlatformAction(PlatformAction):
 
         ret = await _douyin_web_crawler.fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
 
-        print(ret)
+        ret = ret.text
+
+        print(ret, ret)
 
         return False
 
@@ -137,6 +150,9 @@ class DouyinPlatformAction(PlatformAction):
 
         video_info: dict[str, dict] = await _douyin_web_crawler.fetch_one_video(video_id)
         aweme_detail: dict = video_info.get('aweme_detail')
+
+        if aweme_detail is None:
+            return None
 
         # ------------------ 静态统计
         statistics: dict = aweme_detail.get('statistics')
