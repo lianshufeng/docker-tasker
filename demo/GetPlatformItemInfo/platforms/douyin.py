@@ -168,6 +168,13 @@ class DouyinPlatformAction(PlatformAction):
         # ------------------ 视频信息
         video: dict = aweme_detail.get('video')
 
+        # 封面
+
+        if video.get("cover") is not None and video.get("cover").get("url_list") is not None:
+            cover_list: list = video.get("cover").get("url_list")
+            item.video_cover_url = cover_list[len(cover_list) - 1] #默认取出最后一个封面地址
+            pass
+
         # bit_rate
         bit_rate: dict = video.get('bit_rate')
         # 取出一个最合适的视频(分辨率+视频编码)
