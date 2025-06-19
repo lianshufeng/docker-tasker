@@ -46,7 +46,10 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
     await page.set_viewport_size({'width': width, 'height': height})
 
     # 打开首页
+    await page.goto("https://www.baidu.com")
+    await asyncio.sleep(0.3)
     await page.goto(douyin_page_home)
+
 
     # 关闭登录弹窗
     await close_login_panel(page, True)
