@@ -136,6 +136,7 @@ class BPlatformAction(PlatformAction):
         result.id = data['bvid']
         result.title = data['title']
         result.description = data['desc']
+        result.video_cover_url = data['pic']
 
         # 统计信息
         if data.get('stat'):
