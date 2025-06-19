@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import time
 import traceback
 from urllib.parse import urljoin
 
@@ -22,8 +23,12 @@ douyin_page_home = 'https://www.douyin.com'
 
 
 # 异步执行，发现就关闭登录面板
-async def close_login_panel(page: Page, is_exit: bool):
+async def close_login_panel(page: Page, is_exit: bool, timeout: float = 30.0) -> bool:
+    start_time = time.time()
     while True:
+        if time.time() - start_time > timeout:
+            logger.info(f"超时{timeout}秒，退出关闭登录面板流程")
+            return False
         try:
             # Playwright 推荐用 locator
             parent = await page.locator("#login-panel-new").element_handle()
@@ -33,7 +38,7 @@ async def close_login_panel(page: Page, is_exit: bool):
                     await span_element.click()
                     logger.info("关闭登录面板")
                     if is_exit:
-                        break
+                        return True
         except Exception as e:
             logger.info(f"查找或关闭时出错: {e}")
         await asyncio.sleep(0.1)
@@ -47,12 +52,14 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
 
     # 打开首页
     await page.goto("https://www.baidu.com")
-    await asyncio.sleep(0.3)
+    await asyncio.sleep(0.2)
     await page.goto(douyin_page_home)
 
+    for _ in range(3): #容错3次还无法
+        if (await close_login_panel(page, True, 10.0)) is True:
+            break
+        await page.reload()
 
-    # 关闭登录弹窗
-    await close_login_panel(page, True)
     await asyncio.sleep(2)
     await page.goto('about:blank')
     await asyncio.sleep(0.3)
