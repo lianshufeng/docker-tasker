@@ -6,7 +6,11 @@ def merge_config_env(config: dict[str, dict]):
     if tokenManager is None:
         return
 
-    proxy: str = os.getenv("SCRIPT_PROXY",None)
+    proxy: str = os.getenv("HTTP_PROXY",None)
+    if proxy is None:
+        proxy: str = os.getenv("HTTPS_PROXY", None)
+
+
     cookie: str = os.getenv("SCRIPT_COOKIE",None)
 
     for c in ['bilibili', 'douyin', 'tiktok']:
