@@ -6,9 +6,6 @@ def merge_config_env(config: dict[str, dict]):
     if tokenManager is None:
         return
 
-    proxy: str = os.getenv("HTTP_PROXY",None)
-    if proxy is None:
-        proxy: str = os.getenv("HTTPS_PROXY", None)
 
 
     cookie: str = os.getenv("SCRIPT_COOKIE",None)
@@ -17,9 +14,11 @@ def merge_config_env(config: dict[str, dict]):
         it = tokenManager.get(c,None)
         if it is None:
             continue
-        if proxy is not None:
-            it['proxies']['http'] = proxy
-            it['proxies']['https'] = proxy
+
+        # 设置代理
+        it['proxies']['http'] = os.getenv("HTTP_PROXY",None)
+        it['proxies']['https'] = os.getenv("HTTPS_PROXY", None)
+
         if cookie is not None:
             it['headers']['Cookie'] = cookie
     pass
