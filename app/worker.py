@@ -1,13 +1,11 @@
 import logging
 import os
 import re
-import sys
 import traceback
-from io import StringIO
 from typing import Any
 
 import docker
-import requests
+import requests  # 需要引入
 from celery import Celery, Task
 from docker.errors import ImageNotFound
 
@@ -96,8 +94,7 @@ class CallbackTask(Task):
                 logger.error("Traceback:\n%s", traceback.format_exc())
 
 
-import requests  # 需要引入
-import traceback
+
 
 @app.task(bind=True, base=CallbackTask)
 def run_docker_task(self,
@@ -145,14 +142,16 @@ def run_docker_task(self,
                 logger.warning(f"Failed to fetch proxy from {proxy_url}: {e}")
         # ========== 代理逻辑结束 ==========
 
-        # 创建并启动容器
         # 合并外部传入的环境变量和代理变量
-        merged_env = {**container_kwargs.get("environment", {}), **proxy_env}
+        existing_env = container_kwargs.get("environment", {})
+        merged_env = {**existing_env, **proxy_env}
+
+        # 创建并启动容器
         container = docker_client.containers.create(
             image=image,
             command=command,
             **container_kwargs,
-            environment=merged_env,
+            environment=merged_env,  # 确保只传递合并后的环境变量
         )
         logger.info(f"Container {container.id} created successfully for image {image}.")
         container.start()
@@ -196,61 +195,6 @@ def run_docker_task(self,
                 logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
                 logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
-
-
-
-@app.task(bind=True, base=CallbackTask)
-def run_code_task(self,
-                  code: str,  # 容器执行的命令行
-                  max_retries: int = 0,
-                  retry_delay: int = 5,
-                  callback: str = None,  # 回调url，任务执行完成后回调的地址
-                  ) -> dict[str, Any]:
-    """
-    执行传入的 Python 代码，并返回执行结果。支持失败重试。
-    """
-    attempt = self.request.retries + 1  # 获取当前重试次数
-
-    try:
-        # 取出print的日志
-        captured_output = StringIO()
-        sys.stdout = captured_output
-
-        # 隔离环境变量
-        sandbox_globals = {}
-        sandbox_locals = {}
-        exec(code, sandbox_globals, sandbox_locals)
-
-        sys.stdout = sys.__stdout__
-        logs = captured_output.getvalue()
-        print(logs)
-
-        # 解析输出结果
-        result = get_execute_result(logs)
-
-        return make_result(
-            success=True,
-            attempt=attempt,
-            result=result,
-            callback=callback
-        )
-    except Exception as e:
-        logger.warning(f"[TASK {self.request.id}] Exception on attempt {attempt}: {e}")
-        error = str(e)
-        traceback_info = traceback.format_exc()
-
-        # 如果失败且未超过最大重试次数，进行重试
-        if attempt <= max_retries:
-            raise self.retry(exc=e, countdown=retry_delay, max_retries=max_retries)
-
-        # 如果失败且超过最大重试次数，返回错误信息
-        return make_result(
-            success=False,
-            attempt=attempt,
-            error=error,
-            traceback=traceback_info,
-            callback=callback
-        )
 
 
 # 通用的任务处理函数
