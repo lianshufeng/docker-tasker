@@ -96,11 +96,15 @@ class CallbackTask(Task):
                 logger.error("Traceback:\n%s", traceback.format_exc())
 
 
+import requests  # 需要引入
+import traceback
+
 @app.task(bind=True, base=CallbackTask)
 def run_docker_task(self,
                     image: str,  # Docker 镜像名
                     command: list[str],  # 容器执行的命令行
                     container_kwargs: dict[str, Any],  # 容器的运行参数
+                    proxy_url: str = None,  # 抓取代理服务器
                     max_retries: int = 0,
                     retry_delay: int = 5,
                     callback: str = None,  # 回调url，任务执行完成后回调的地址
@@ -122,11 +126,33 @@ def run_docker_task(self,
             docker_client.images.pull(image)
             logger.info(f"Image {image} pulled successfully.")
 
+        # ========== 代理逻辑开始 ==========
+        proxy_env = {}
+        if proxy_url:
+            try:
+                resp = requests.get(proxy_url, timeout=10)
+                resp.raise_for_status()
+                proxy_ip = resp.text.strip()
+                if proxy_ip:
+                    proxy_env = {
+                        "http_proxy": f"http://{proxy_ip}",
+                        "https_proxy": f"http://{proxy_ip}"
+                    }
+                    logger.info(f"Using proxy: {proxy_env}")
+                else:
+                    logger.warning(f"Proxy address from {proxy_url} is empty.")
+            except Exception as e:
+                logger.warning(f"Failed to fetch proxy from {proxy_url}: {e}")
+        # ========== 代理逻辑结束 ==========
+
         # 创建并启动容器
+        # 合并外部传入的环境变量和代理变量
+        merged_env = {**container_kwargs.get("environment", {}), **proxy_env}
         container = docker_client.containers.create(
             image=image,
             command=command,
-            **container_kwargs,  # 扩展参数，具体可以参考api
+            **container_kwargs,
+            environment=merged_env,
         )
         logger.info(f"Container {container.id} created successfully for image {image}.")
         container.start()
@@ -170,6 +196,7 @@ def run_docker_task(self,
                 logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
                 logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
+
 
 
 @app.task(bind=True, base=CallbackTask)

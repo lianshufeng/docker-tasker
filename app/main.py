@@ -32,6 +32,7 @@ def run_docker(data: dict = Body(..., example={
             "7900/tcp": None  # 这里是外部映射的端口，null为随机，7900 为固定的
         },
     },
+    "proxy_url": None,  # 代理的地址 http://proxy.xx.com/ip.txt
     "queue": "celery",
     "max_retries": 1,
     "retry_delay": 5,
@@ -42,6 +43,7 @@ def run_docker(data: dict = Body(..., example={
     image = data.get('image')
     command = data.get('command')
     container_kwargs: dict[str, Any] = data.get('container_kwargs', {})  # 容器的其他参数
+    proxy_url: str | None = data.get('proxy_url', None)  # 代理服务器地址
 
     # 提取通用参数
     max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
@@ -53,6 +55,7 @@ def run_docker(data: dict = Body(..., example={
         "image": image,
         "command": command,
         "container_kwargs": container_kwargs,
+        "proxy_url": proxy_url,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
         "callback": callback
