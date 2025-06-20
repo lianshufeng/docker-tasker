@@ -96,8 +96,6 @@ class CallbackTask(Task):
                 logger.error("Traceback:\n%s", traceback.format_exc())
 
 
-
-
 @app.task(bind=True, base=CallbackTask)
 def run_docker_task(self,
                     image: str,  # Docker 镜像名
@@ -134,8 +132,8 @@ def run_docker_task(self,
                 proxy_ip = resp.text.strip()
                 if proxy_ip:
                     proxy_env = {
-                        "http_proxy": f"http://{proxy_ip}",
-                        "https_proxy": f"http://{proxy_ip}"
+                        "HTTP_PROXY": f"http://{proxy_ip}",
+                        "HTTPS_PROXY": f"http://{proxy_ip}"
                     }
                     logger.info(f"Using proxy: {proxy_env}")
                 else:
@@ -148,12 +146,14 @@ def run_docker_task(self,
         existing_env = container_kwargs.get("environment", {})
         merged_env = {**existing_env, **proxy_env}
 
+        # 更新环境变量
+        container_kwargs['environment'] = merged_env
+
         # 创建并启动容器
         container = docker_client.containers.create(
             image=image,
             command=command,
             **container_kwargs,
-            environment=merged_env,  # 确保只传递合并后的环境变量
         )
         logger.info(f"Container {container.id} created successfully for image {image}.")
         container.start()
@@ -197,7 +197,6 @@ def run_docker_task(self,
                 logger.info(f"Container {container.id} removed.")
             except Exception as cleanup_error:
                 logger.warning(f"[WARN] Failed to remove container: {cleanup_error}")
-
 
 
 @app.task(bind=True, base=CallbackTask)
