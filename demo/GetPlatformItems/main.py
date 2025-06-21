@@ -40,7 +40,7 @@ async def main():
             result: ActionResult = await platform_action.action(keyword=keyword, cookies=cookies, **_config)
             for it in result.items:
                 items.append(Item(title=it.title, url=it.url))
-            Result(success=result.success, msg=result.msg, platform=platform_name, items=items,
+            Result(success=result.success, msg=result.msg, keyword=keyword, platform=platform_name, items=items,
                    cookies=result.cookies).print()
         except Exception as e:
             logger.error(e)

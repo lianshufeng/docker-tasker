@@ -21,6 +21,9 @@ class Result(BaseModel):
     # 平台名
     platform: str | None = None
 
+    # 关键词
+    keyword: str | None = None
+
     # items
     items: List[Item] | None = None
 
