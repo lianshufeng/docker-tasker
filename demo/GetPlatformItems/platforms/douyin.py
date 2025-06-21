@@ -25,7 +25,7 @@ douyin_page_home = 'https://www.douyin.com'
 # 构建context
 async def make_browser_context(browser: Browser) -> BrowserContext:
     # 定义浏览器信息
-    CHROME_VERSION = f'{random.randint(80, 137)}.0.0.0'  # 修改为 137.0.0.0 版本
+    CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
     USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
     PLATFORM = 'Windows'
     APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
