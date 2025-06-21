@@ -106,9 +106,17 @@ def run_docker_task(self,
                     retry_delay: int = 5,
                     callback: str = None,  # 回调url，任务执行完成后回调的地址
                     ) -> dict[str, Any]:
-    """
-    在 Docker 容器中运行指定命令，支持失败重试。
-    """
+
+    logging.debug(f"Running Docker task with the following parameters:")
+    logging.debug(f"image: {image}")
+    logging.debug(f"command: {command}")
+    logging.debug(f"container_kwargs: {container_kwargs}")
+    logging.debug(f"proxy_url: {proxy_url}")
+    logging.debug(f"max_retries: {max_retries}")
+    logging.debug(f"retry_delay: {retry_delay}")
+    logging.debug(f"callback: {callback}")
+
+
     container = None
     attempt = self.request.retries + 1
     image = image.strip()
