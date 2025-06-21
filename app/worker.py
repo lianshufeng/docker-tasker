@@ -107,14 +107,14 @@ def run_docker_task(self,
                     callback: str = None,  # 回调url，任务执行完成后回调的地址
                     ) -> dict[str, Any]:
 
-    logging.debug(f"Running Docker task with the following parameters:")
-    logging.debug(f"image: {image}")
-    logging.debug(f"command: {command}")
-    logging.debug(f"container_kwargs: {container_kwargs}")
-    logging.debug(f"proxy_url: {proxy_url}")
-    logging.debug(f"max_retries: {max_retries}")
-    logging.debug(f"retry_delay: {retry_delay}")
-    logging.debug(f"callback: {callback}")
+    logging.info(f"Running Docker task with the following parameters:")
+    logging.info(f"image: {image}")
+    logging.info(f"command: {command}")
+    logging.info(f"container_kwargs: {container_kwargs}")
+    logging.info(f"proxy_url: {proxy_url}")
+    logging.info(f"max_retries: {max_retries}")
+    logging.info(f"retry_delay: {retry_delay}")
+    logging.info(f"callback: {callback}")
 
 
     container = None
