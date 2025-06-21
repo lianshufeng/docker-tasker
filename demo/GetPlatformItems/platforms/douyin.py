@@ -5,7 +5,7 @@ import time
 import traceback
 from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright, Page, Browser, ElementHandle
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
 
@@ -20,6 +20,41 @@ width = 800
 height = 600
 
 douyin_page_home = 'https://www.douyin.com'
+
+
+# 构建context
+async def make_browser_context(browser: Browser) -> BrowserContext:
+    # 定义浏览器信息
+    CHROME_VERSION = f'{random.randint(80, 137)}.0.0.0'  # 修改为 137.0.0.0 版本
+    USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
+    PLATFORM = 'Windows'
+    APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
+    APP_NAME = 'Netscape'
+    context = await browser.new_context(
+        extra_http_headers={
+            'User-Agent': USER_AGENT,
+            'sec-ch-ua': f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not/A)Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': f'"{PLATFORM}"',
+        }
+    )
+    # 注入自定义 JavaScript，修改浏览器的 navigator 对象，隐藏真实信息
+    await context.add_init_script(f"""
+        Object.defineProperty(navigator, 'userAgent', {{
+            get: () => '{USER_AGENT}'
+        }});
+        Object.defineProperty(navigator, 'platform', {{
+            get: () => '{PLATFORM}'
+        }});
+        Object.defineProperty(navigator, 'appVersion', {{
+            get: () => '{APP_VERSION}'
+        }});
+        Object.defineProperty(navigator, 'appName', {{
+            get: () => '{APP_NAME}'
+        }});
+    """)
+
+    return context
 
 
 # 异步执行，发现就关闭登录面板
@@ -55,7 +90,7 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
     await asyncio.sleep(0.2)
     await page.goto(douyin_page_home)
 
-    for _ in range(3): #容错3次还无法
+    for _ in range(3):  # 容错3次还无法
         if (await close_login_panel(page, True, 10.0)) is True:
             break
         await page.reload()
@@ -185,7 +220,7 @@ class DouyinPlatformAction(PlatformAction):
             '--no-first-run',
             '--no-default-browser-check',
             f'--window-size={width},{height}',
-            '--window-position=0,0'
+            '--window-position=0,0',
         ]
         if proxy:
             args_list.append(f'--proxy-server=https={proxy}')
@@ -196,7 +231,10 @@ class DouyinPlatformAction(PlatformAction):
                 executable_path=chrome_path,
                 args=args_list,
             )
-            context = await browser.new_context()
+
+            context: BrowserContext = await make_browser_context(browser)
+            # context:BrowserContext = await browser.new_context()
+
             page = await context.new_page()
 
             # 设置 cookies
