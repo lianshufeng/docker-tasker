@@ -1,4 +1,4 @@
-FROM selenium/standalone-chrome:134.0-20250525
+FROM selenium/standalone-chrome:136.0-20250606
 
 
 USER 0
