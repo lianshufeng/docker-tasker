@@ -40,6 +40,9 @@ class Item(BaseModel):
     # 描述
     description: str | None = None
 
+    # 发布时间
+    create_time: int | None = None
+
     # 视频的播放地址
     video_url: str | None = None
 

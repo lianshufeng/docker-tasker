@@ -165,6 +165,10 @@ class DouyinPlatformAction(PlatformAction):
         item.title = caption
         item.description = desc
 
+        # ------------------ 发布时间
+        item.create_time = aweme_detail.get('create_time')
+
+
         # ------------------ 视频信息
         video: dict = aweme_detail.get('video')
 

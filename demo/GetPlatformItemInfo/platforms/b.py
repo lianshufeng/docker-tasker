@@ -1,10 +1,11 @@
-import logging
-import re
 import asyncio
+import logging
 import random
+import re
 from typing import Optional
 
 from douyin_tiktok_scraper.scraper import Scraper
+
 from .base import PlatformAction, ActionResultItem, Comment
 from .crawlers.bilibili.web.web_crawler import BilibiliWebCrawler
 
@@ -88,6 +89,9 @@ class BPlatformAction(PlatformAction):
             video_data = await self._fetch_video_details(bv)
             if video_data:
                 self._populate_video_info(result, video_data)
+
+            # 发布时间
+            result.create_time = video_data.get("pubdate")
 
             # 4. 获取评论(如果有)
             if result.statistics_comment_count > 0:

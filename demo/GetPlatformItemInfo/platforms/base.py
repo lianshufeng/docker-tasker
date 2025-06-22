@@ -121,11 +121,14 @@ class ActionResultItem(BaseModel):
     # 描述
     description: str | None = None
 
+    # 发布时间
+    create_time: int | None = None
+
     # 视频的播放地址
     video_url: str | None = None
 
     # 视频的封面地址
-    video_cover_url:str | None = None
+    video_cover_url: str | None = None
 
     # 视频时长,单位秒
     video_duration: float | None = None
