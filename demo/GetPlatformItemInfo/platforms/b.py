@@ -90,9 +90,6 @@ class BPlatformAction(PlatformAction):
             if video_data:
                 self._populate_video_info(result, video_data)
 
-            # 发布时间
-            result.create_time = video_data.get("pubdate")
-
             # 4. 获取评论(如果有)
             if result.statistics_comment_count > 0:
                 result.comments = await self._fetch_comments(
@@ -141,6 +138,9 @@ class BPlatformAction(PlatformAction):
         result.title = data['title']
         result.description = data['desc']
         result.video_cover_url = data['pic']
+
+        # 发布时间
+        result.create_time = data.get("pubdate")
 
         # 统计信息
         if data.get('stat'):
