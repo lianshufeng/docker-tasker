@@ -104,9 +104,9 @@ def run_docker_task(self,
                     proxy_url: str = None,  # 抓取代理服务器
                     max_retries: int = 0,
                     retry_delay: int = 5,
+                    max_execution_time: int = 60 * 60 * 1,  # 最大执行时长，单位为秒，默认为1小时
                     callback: str = None,  # 回调url，任务执行完成后回调的地址
                     ) -> dict[str, Any]:
-
     logging.info(f"Running Docker task with the following parameters:")
     logging.info(f"image: {image}")
     logging.info(f"command: {command}")
@@ -115,7 +115,7 @@ def run_docker_task(self,
     logging.info(f"max_retries: {max_retries}")
     logging.info(f"retry_delay: {retry_delay}")
     logging.info(f"callback: {callback}")
-
+    logging.info(f"max_execution_time: {max_execution_time} seconds")  # Log the max_execution_time
 
     container = None
     attempt = self.request.retries + 1
@@ -167,8 +167,8 @@ def run_docker_task(self,
         container.start()
         logger.info(f"Container {container.id} started.")
 
-        # 等待执行完成
-        exit_result = container.wait()
+        # 等待执行完成，并设置最大执行时间
+        exit_result = container.wait(timeout=max_execution_time)  # Set timeout here
         logs = container.logs(stdout=True, stderr=True).decode("utf-8")
         logger.info(f"[TASK {self.request.id}] Docker output:\n{logs}")
 

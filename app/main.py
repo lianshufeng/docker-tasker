@@ -38,12 +38,14 @@ def run_docker(data: dict = Body(..., example={
     "retry_delay": 5,
     "countdown": 1,  # 延迟执行
     "expires": 60 * 60 * 2,
+    "max_execution_time": 60 * 60 * 1,  # 最大执行时间
     "callback": None  # 回调的地址，注意必须是一个post请求
 })):
     image = data.get('image')
     command = data.get('command')
     container_kwargs: dict[str, Any] = data.get('container_kwargs', {})  # 容器的其他参数
     proxy_url: str | None = data.get('proxy_url', None)  # 代理服务器地址
+    max_execution_time: int | None = data.get('max_execution_time', 3600)  # 最大执行时间
 
     # 提取通用参数
     max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
@@ -58,6 +60,7 @@ def run_docker(data: dict = Body(..., example={
         "proxy_url": proxy_url,
         "max_retries": max_retries,
         "retry_delay": retry_delay,
+        "max_execution_time": max_execution_time,
         "callback": callback
     },
         retry=True,
