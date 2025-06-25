@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import random
 import re
@@ -90,7 +91,6 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
 
         logger.info("page_comments : %s/%s", cursor, total)
 
-
         #  还有数据，可以继续翻页
         if comments_dict.get("has_more") == 1 and (max_comment_count is not None and len(comments) < max_comment_count):
             await asyncio.sleep(random.randint(300, 1500) / 1000)
@@ -155,7 +155,6 @@ class DouyinPlatformAction(PlatformAction):
 
         video_info: dict[str, dict] = await _douyin_web_crawler.fetch_one_video(video_id)
         aweme_detail: dict = video_info.get('aweme_detail')
-
         if aweme_detail is None:
             return None
 
@@ -179,10 +178,28 @@ class DouyinPlatformAction(PlatformAction):
             item.risk_info_content = risk_infos.get("content", None)
 
         # ------------------ 视频标签
-
         video_tag = aweme_detail.get("video_tag")
         if video_tag is not None:
-            item.video_tag = [item['tag_name'] for item in video_tag]
+            item.video_tag = [tag['tag_name'] for tag in video_tag if tag.get('tag_name') not in ("", None)]
+
+        # ------------------ 主播信息
+        anchor_info = aweme_detail.get("anchor_info")
+        if anchor_info is not None and anchor_info.get("extra") is not None:
+            try:
+                anchor_info_extra = json.loads(anchor_info.get("extra"))
+                # 地点信息
+                address_info = anchor_info_extra.get("address_info")
+                if address_info is not None:
+                    item.anchor_address_province = address_info.get("province")
+                    item.anchor_address_city = address_info.get("city")
+                    item.anchor_address_district = address_info.get("district")
+                    item.anchor_address_address = address_info.get("address")
+                    item.anchor_address_city_code = address_info.get("city_code")
+
+
+
+            except Exception as e:
+                logger.error(e)
 
         # ------------------ 视频信息
         video: dict = aweme_detail.get('video')

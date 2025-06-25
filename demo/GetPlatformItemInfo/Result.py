@@ -52,11 +52,18 @@ class Item(BaseModel):
     # 视频的标签
     video_tag: list[str] | None = None
 
+    # 主播的地址信息
+    anchor_address_province: str | None = None
+    anchor_address_city: str | None = None
+    anchor_address_district: str | None = None
+    anchor_address_address: str | None = None
+    anchor_address_city_code: str | None = None
+
     # 视频的播放地址
     video_url: str | None = None
 
     # 视频的封面地址
-    video_cover_url:str | None = None
+    video_cover_url: str | None = None
 
     # 视频时长,单位秒
     video_duration: float | None = None
