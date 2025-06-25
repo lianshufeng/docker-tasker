@@ -57,6 +57,7 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
 
         # 取出评论
         comments_list: list | None = comments_dict.get("comments", None)
+        logger.info("comments_list : %s", comments_list)
 
         if comments_list is not None and len(comments_list) > 0:
             for comment in comments_list:
@@ -73,6 +74,9 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
                     # 点赞
                     comment_ret.digg_count = comment.get("digg_count")
 
+                    # 地点
+                    comment_ret.address = comment.get("ip_label")
+
                     # 兼容框架错误的匹配
                     user = comment.get("user")
                     if user is not None:
@@ -85,6 +89,7 @@ async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0,
                     logger.error("Traceback:\n%s", traceback.format_exc())
 
         logger.info("page_comments : %s/%s", cursor, total)
+
 
         #  还有数据，可以继续翻页
         if comments_dict.get("has_more") == 1 and (max_comment_count is not None and len(comments) < max_comment_count):
@@ -168,15 +173,24 @@ class DouyinPlatformAction(PlatformAction):
         # ------------------ 发布时间
         item.create_time = aweme_detail.get('create_time')
 
+        # ------------------ 风险信息
+        risk_infos: dict | None = aweme_detail.get("risk_infos", None)
+        if risk_infos is not None:
+            item.risk_info_content = risk_infos.get("content", None)
+
+        # ------------------ 视频标签
+
+        video_tag = aweme_detail.get("video_tag")
+        if video_tag is not None:
+            item.video_tag = [item['tag_name'] for item in video_tag]
 
         # ------------------ 视频信息
         video: dict = aweme_detail.get('video')
 
         # 封面
-
         if video.get("cover") is not None and video.get("cover").get("url_list") is not None:
             cover_list: list = video.get("cover").get("url_list")
-            item.video_cover_url = cover_list[len(cover_list) - 1] #默认取出最后一个封面地址
+            item.video_cover_url = cover_list[len(cover_list) - 1]  # 默认取出最后一个封面地址
             pass
 
         # bit_rate

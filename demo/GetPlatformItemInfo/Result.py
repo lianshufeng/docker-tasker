@@ -23,6 +23,9 @@ class Comment(BaseModel):
     # 点赞
     digg_count: int = None
 
+    # 地点
+    address: str = None
+
 
 class Item(BaseModel):
     # 原始地址
@@ -42,6 +45,12 @@ class Item(BaseModel):
 
     # 发布时间
     create_time: int | None = None
+
+    # 风险信息内容
+    risk_info_content: str | None = None
+
+    # 视频的标签
+    video_tag: list[str] | None = None
 
     # 视频的播放地址
     video_url: str | None = None
