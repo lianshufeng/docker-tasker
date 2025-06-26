@@ -141,6 +141,7 @@ class BPlatformAction(PlatformAction):
 
         # 发布时间
         result.create_time = data.get("pubdate")
+        result.video_duration = data.get('duration')
 
         # 统计信息
         if data.get('stat'):

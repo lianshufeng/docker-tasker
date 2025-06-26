@@ -41,7 +41,7 @@ def find_first_playable_video(url_list: list[str]) -> [str, float]:
         }
         # 长度秒
         duration: float = is_video_playable(url, header)
-        if is_video_playable(url, header):
+        if duration > 0:
             return url, duration
     return None, None
 
@@ -139,7 +139,6 @@ class ActionResultItem(BaseModel):
     anchor_address_district: str | None = None
     anchor_address_address: str | None = None
     anchor_address_city_code: str | None = None
-
 
     # 视频的播放地址
     video_url: str | None = None
