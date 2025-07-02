@@ -1,12 +1,14 @@
 # 定义并解析命令行参数。
 import argparse
 
+from demo.GetPlatformItems.platforms import XiaoHongShuPlatformAction
 from platforms import DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction
 
 platform_map = {
     'douyin': DouyinPlatformAction,
     'kuaishou': KuaishouPlatformAction,
-    'b': BPlatformAction
+    'b': BPlatformAction,
+    'xiaohongshu': XiaoHongShuPlatformAction
 }
 
 
