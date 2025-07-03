@@ -10,8 +10,8 @@ from httpx import RequestError
 from playwright.async_api import Page, BrowserContext, Cookie
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from demo.GetPlatformItems.platforms.xhs.field import SearchSortType, SearchNoteType
-from demo.GetPlatformItems.platforms.xhs.help import sign, get_search_id
+from ..xhs.field import SearchSortType, SearchNoteType
+from ..xhs.help import sign, get_search_id
 
 def init_loging_config():
     level = logging.INFO
