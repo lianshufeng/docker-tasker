@@ -66,7 +66,7 @@ async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) ->
             return False
         try:
             # Playwright 推荐用 locator
-            parent = await page.locator("#login-panel-new").element_handle()
+            parent = await page.locator("#login-panel-new").element_handle(timeout=timeout / 2 * 1000)
             if parent:
                 span_element = await parent.query_selector('svg')
                 if span_element:
