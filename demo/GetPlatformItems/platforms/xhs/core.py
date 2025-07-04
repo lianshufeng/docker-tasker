@@ -95,7 +95,7 @@ class XiaoHongShuCrawler():
         if chrome_path is None:
             raise RuntimeError("未找到可用的chrome")
 
-        playwright_proxy_format, httpx_proxy_format = None, None
+
         async with async_playwright() as playwright:
 
             args_list = [
@@ -111,9 +111,6 @@ class XiaoHongShuCrawler():
             if proxy:
                 args_list.append(f'--proxy-server=https={proxy}')
 
-            user_data_dir = os.path.join(
-                os.getcwd(), "browser_data", "%s_user_data_dir" % "xhs"
-            )
             browser = await playwright.chromium.launch(
                 headless=False,
                 executable_path=chrome_path,
@@ -139,7 +136,7 @@ class XiaoHongShuCrawler():
             await self.context_page.goto(self.index_url)
 
             # Create a client to interact with the xiaohongshu website.
-            self.xhs_client = await self.create_xhs_client(httpx_proxy_format)
+            self.xhs_client = await self.create_xhs_client(proxy)
             if not await self.xhs_client.pong():
                 login_obj = XiaoHongShuLogin(
                     login_type="cookie",
@@ -184,8 +181,7 @@ class XiaoHongShuCrawler():
                     logger.info(
                         f"[XiaoHongShuCrawler.search] search xhs keyword: {keyword}, page: {page}"
                     )
-                    note_ids: List[str] = []
-                    xsec_tokens: List[str] = []
+
                     notes_res = await self.xhs_client.get_note_by_keyword(
                         keyword=keyword,
                         search_id=search_id,
@@ -200,27 +196,15 @@ class XiaoHongShuCrawler():
                     if not notes_res or not notes_res.get("has_more", False):
                         logger.info("No more content!")
                         break
-                    semaphore = asyncio.Semaphore(1)
-                    task_list = [
-                        self.get_note_detail_async_task(
-                            note_id=post_item.get("id"),
-                            xsec_source=post_item.get("xsec_source"),
-                            xsec_token=post_item.get("xsec_token"),
-                            semaphore=semaphore,
-                        )
-                        for post_item in notes_res.get("items", {})
-                        if post_item.get("model_type") not in ("rec_query", "hot_query")
-                    ]
-                    #详情
-                    note_details = await asyncio.gather(*task_list)
-                    for note_detail in note_details:
-                        if note_detail:
-                            await update_Result(note_detail, actionResult)
-                            note_ids.append(note_detail.get("note_id"))
-                            xsec_tokens.append(note_detail.get("xsec_token"))
+
+                    for post_item in notes_res.get("items", {}):
+                        if post_item.get("model_type") not in ("rec_query", "hot_query"):
+                            url = f'https://www.xiaohongshu.com/explore/{post_item.get("id")}?xsec_token={post_item.get("xsec_token")}&xsec_source=pc_search'
+                            title = post_item.get("note_card").get("display_title", "")
+                            actionResult.items.append(ActionResultItem(title=title, url=url))
                     page += 1
                     logger.info(
-                        f"[XiaoHongShuCrawler.search] Note details: {note_details}"
+                        f"[XiaoHongShuCrawler.search] Note details: {actionResult}"
                     )
                 except RequestError:
                     logger.error(
@@ -228,70 +212,6 @@ class XiaoHongShuCrawler():
                     )
                     break
 
-    async def get_note_detail_async_task(
-        self,
-        note_id: str,
-        xsec_source: str,
-        xsec_token: str,
-        semaphore: asyncio.Semaphore,
-    ) -> Optional[Dict]:
-        """Get note detail
-
-        Args:
-            note_id:
-            xsec_source:
-            xsec_token:
-            semaphore:
-
-        Returns:
-            Dict: note detail
-        """
-        note_detail_from_html, note_detail_from_api = None, None
-        async with semaphore:
-            # When proxy is not enabled, increase the crawling interval
-            crawl_interval = random.uniform(1, 2)
-
-            try:
-                # 尝试直接获取网页版笔记详情，携带cookie
-                note_detail_from_html: Optional[Dict] = (
-                    await self.xhs_client.get_note_by_id_from_html(
-                        note_id, xsec_source, xsec_token, enable_cookie=True
-                    )
-                )
-                time.sleep(crawl_interval)
-                if not note_detail_from_html:
-                    # 如果网页版笔记详情获取失败，则尝试不使用cookie获取
-                    note_detail_from_html = (
-                        await self.xhs_client.get_note_by_id_from_html(
-                            note_id, xsec_source, xsec_token, enable_cookie=False
-                        )
-                    )
-                    logger.error(
-                        f"[XiaoHongShuCrawler.get_note_detail_async_task] Get note detail error, note_id: {note_id}"
-                    )
-                if not note_detail_from_html:
-                    # 如果网页版笔记详情获取失败，则尝试API获取
-                    note_detail_from_api: Optional[Dict] = (
-                        await self.xhs_client.get_note_by_id(
-                            note_id, xsec_source, xsec_token
-                        )
-                    )
-                note_detail = note_detail_from_html or note_detail_from_api
-                if note_detail:
-                    note_detail.update(
-                        {"xsec_token": xsec_token, "xsec_source": xsec_source}
-                    )
-                    return note_detail
-            except RequestError as ex:
-                logger.error(
-                    f"[XiaoHongShuCrawler.get_note_detail_async_task] Get note detail error: {ex}"
-                )
-                return None
-            except KeyError as ex:
-                logger.error(
-                    f"[XiaoHongShuCrawler.get_note_detail_async_task] have not fund note detail note_id:{note_id}, err: {ex}"
-                )
-                return None
 
     async def create_xhs_client(self, httpx_proxy: Optional[str]) -> XiaoHongShuClient:
         """Create xhs client"""
@@ -314,21 +234,6 @@ class XiaoHongShuCrawler():
             cookie_dict=cookie_dict,
         )
         return xhs_client_obj
-
-
-
-async def update_Result(note_item: Dict, actionResult: ActionResult):
-    """
-    更新小红书笔记
-    Args:
-        note_item:
-
-    Returns:
-
-    """
-    note_id = note_item.get("note_id")
-    note_url = f"https://www.xiaohongshu.com/explore/{note_id}?xsec_token={note_item.get('xsec_token')}&xsec_source=pc_search"
-    actionResult.items.append(ActionResultItem(url=note_url, title=note_item.get("title") or note_item.get("desc", "")[:255]))
 
 
 def convert_cookies(cookies: Optional[List[Cookie]]) -> Tuple[str, Dict]:

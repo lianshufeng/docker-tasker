@@ -1,3 +1,5 @@
+import os
+
 from .base import ActionResult, PlatformAction
 from .xhs.core import XiaoHongShuCrawler
 
@@ -6,7 +8,9 @@ class XiaoHongShuPlatformAction(PlatformAction):
 
     async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
         max_size: int = kwargs.get('max_size') or 999
-        proxy: str = kwargs.get('proxy', None)
+        proxy = os.getenv("HTTPS_PROXY", None)
+
+
 
         xiaohongshuCrawler = XiaoHongShuCrawler()
         actionResult = ActionResult()
