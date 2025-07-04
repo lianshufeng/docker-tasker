@@ -191,7 +191,7 @@ class XiaoHongShuClient:
         search_id: str = get_search_id(),
         page: int = 1,
         page_size: int = 20,
-        sort: SearchSortType = SearchSortType.GENERAL,
+        sort: SearchSortType = SearchSortType.LATEST,
         note_type: SearchNoteType = SearchNoteType.ALL,
     ) -> Dict:
         """
