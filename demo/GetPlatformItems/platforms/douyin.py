@@ -58,7 +58,7 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
 
 
 # 异步执行，发现就关闭登录面板
-async def close_login_panel(page: Page, is_exit: bool, timeout: float = 30.0) -> bool:
+async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) -> bool:
     start_time = time.time()
     while True:
         if time.time() - start_time > timeout:
@@ -221,7 +221,7 @@ class DouyinPlatformAction(PlatformAction):
             '--no-default-browser-check',
             f'--window-size={width},{height}',
             '--window-position=0,0',
-            '--blink-settings=imagesEnabled=false'
+            # '--blink-settings=imagesEnabled=false'
         ]
         if proxy:
             args_list.append(f'--proxy-server=https={proxy}')
