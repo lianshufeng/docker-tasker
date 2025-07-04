@@ -221,6 +221,7 @@ class DouyinPlatformAction(PlatformAction):
             '--no-default-browser-check',
             f'--window-size={width},{height}',
             '--window-position=0,0',
+            '--blink-settings=imagesEnabled=false'
         ]
         if proxy:
             args_list.append(f'--proxy-server=https={proxy}')
