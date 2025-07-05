@@ -68,6 +68,7 @@ def run_docker(data: dict = Body(..., example={
         queue=queue,  # 队列名
         countdown=countdown,
         expires=expires,
+        time_limit=max_execution_time
     )
     return {"task_id": task.id}
 
