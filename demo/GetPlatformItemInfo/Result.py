@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 from pydantic import BaseModel
 
@@ -93,7 +93,7 @@ class Result(BaseModel):
     msg: str | None = None
 
     # items
-    items: List[Item] | None = None
+    items: List[Item] | Any | None = None
 
     # cookies
     cookies: str | None = None

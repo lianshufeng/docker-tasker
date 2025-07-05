@@ -7,7 +7,7 @@ import traceback
 
 from douyin_tiktok_scraper.scraper import Scraper
 
-from .base import PlatformAction, ActionResultItem, find_first_playable_video, Comment
+from .base import PlatformAction, ActionResultItem, find_first_playable_video, Comment, FeedsItem
 from .crawlers.douyin.web.web_crawler import DouyinWebCrawler
 
 # 日志配置，建议你根据生产环境实际需要调整
@@ -131,6 +131,23 @@ class DouyinPlatformAction(PlatformAction):
         print(ret, ret)
 
         return False
+
+    # 获取作者的作品
+    async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
+        ret = await _douyin_web_crawler.fetch_user_post_videos(sec_user_id=uid, max_cursor=cursor, count=count)
+        if ret is None:
+            return []
+        aweme_list = ret.get('aweme_list', None)
+        if aweme_list is None:
+            return []
+
+        result: list[FeedsItem] = []
+        for aweme in aweme_list:
+            url = f'https://www.douyin.com/video/{aweme.get('aweme_id')}'
+            title = aweme.get('caption')
+            result.append(FeedsItem(url=url, title=title))
+
+        return result
 
     # 执行任务
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:

@@ -167,12 +167,25 @@ class ActionResult(BaseModel):
     items: list[ActionResultItem] = []
 
 
+# 作品列表
+class FeedsItem(BaseModel):
+    # 标题
+    title: str
+    # url
+    url: str
+
+
+
 class PlatformAction(BaseModel):
     # 执行任务
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         pass
 
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
+        pass
+
+    # 获取作者的作品
+    async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
         pass
 
     # 取出平台类型
