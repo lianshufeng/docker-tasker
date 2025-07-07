@@ -1,8 +1,11 @@
 import argparse
 import asyncio
 import logging
+import traceback
+from typing import Any
 
-from Result import Result
+from pydantic import BaseModel
+
 from config import platform_items, make_platform_from_type
 from platforms.base import PlatformAction, FeedsItem
 
@@ -39,6 +42,36 @@ def _parse_args() -> dict:
     return parser.parse_args().__dict__
 
 
+# 响应的模型
+class Result(BaseModel):
+    # 结果
+    success: bool = False
+
+    # 消息
+    msg: str | None = None
+
+    # 平台名
+    platform: str | None = None
+
+    # 用户id
+    uid: str | None = None
+
+    # items
+    items: Any | None = None
+
+    # cookies
+    # cookies: str | None = None
+
+    # 打印到控制台
+    def print(self, big_data: bool = False):
+        ret: str = f"""
+===result-data===
+{self.model_dump_json(exclude_none=True)}
+===result-data===
+"""
+        print(ret)
+
+
 _config = _parse_args()
 
 
@@ -50,11 +83,14 @@ async def main():
     cursor: int = _config.get("cursor")
     count: int = _config.get("count")
 
-    platform_action: PlatformAction = make_platform_from_type(platform_name)
-
-    items: list[FeedsItem] = await platform_action.author_feeds_list(uid=uid, cursor=cursor, count=count)
-
-    Result(success=True, items=items).print()
+    try:
+        platform_action: PlatformAction = make_platform_from_type(platform_name)
+        items: list[FeedsItem] = await platform_action.author_feeds_list(uid=uid, cursor=cursor, count=count)
+        Result(success=True, items=items, platform=platform_name, uid=uid).print()
+    except Exception as e:
+        logger.error(e)
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        Result(success=False, msg=traceback.format_exc()).print()
 
 
 if __name__ == '__main__':
