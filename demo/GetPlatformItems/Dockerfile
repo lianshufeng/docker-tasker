@@ -41,6 +41,10 @@ RUN pip install -r requirements.txt
 # 在 wait 前插入 exec "$@"，注意处理多行插入 （延迟5秒）
 RUN sed -i '/wait \${SUPERVISOR_PID}/i sleep 5\nexec "$@"' /opt/bin/entry_point.sh
 
+
+# 卸载 xdg-utils
+# RUN apt-get update && apt-get install -y xdg-utils  && rm -f /usr/bin/xdg-open  && echo -e '#!/bin/sh\nexit 0' > /usr/bin/xdg-open  && chmod +x /usr/bin/xdg-open
+
 # 保留原 ENTRYPOINT，注入执行 CMD 的能力
 ENTRYPOINT ["/opt/bin/entry_point.sh"]
 CMD [""]

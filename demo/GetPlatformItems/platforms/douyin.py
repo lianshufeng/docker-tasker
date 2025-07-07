@@ -108,7 +108,7 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
     # ---- 创建context并注入补丁 ----
     context = await browser.new_context(
         user_agent=user_agent,
-        viewport=ViewportSize(width=width, height=height),
+        # viewport=ViewportSize(width=width, height=height),
         locale=locale,
         timezone_id=timezone
     )
