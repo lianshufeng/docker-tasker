@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import uvicorn
@@ -9,6 +10,13 @@ from app.worker import app as celery_app, run_code_task, run_docker_task, run_pr
 
 app = FastAPI(title="分布式任务接口文档")
 
+# 日志配置，建议你根据生产环境实际需要调整
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 
 # 提取参数
 def get_parameter(data: dict):
@@ -16,7 +24,7 @@ def get_parameter(data: dict):
     retry_delay = data.get('retry_delay', 5)  # 重试延迟
     queue = data.get('queue', "celery")  # 默认队列名
     countdown = data.get('countdown', None)  # 倒计时执行 (秒)
-    expires = data.get('expires', None)  # 过期时间 (秒)
+    expires = data.get('expires', 60 * 60 * 2)  # 过期时间 (秒)
     callback = data.get('callback', None)  # 回调地址
     return max_retries, retry_delay, queue, countdown, expires, callback
 
@@ -49,6 +57,15 @@ def run_docker(data: dict = Body(..., example={
 
     # 提取通用参数
     max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
+
+    logger.info(
+        f"image={image}, command={command}, container_kwargs={container_kwargs}, "
+        f"proxy_url={proxy_url}, max_execution_time={max_execution_time}, "
+        f"max_retries={max_retries}, retry_delay={retry_delay}, queue={queue}, "
+        f"countdown={countdown}, expires={expires}, callback={callback}"
+    )
+
+
 
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
