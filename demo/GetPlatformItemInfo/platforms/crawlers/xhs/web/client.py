@@ -10,10 +10,9 @@ from httpx import RequestError
 from playwright.async_api import Page, BrowserContext, Cookie
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from demo.GetPlatformItemInfo.platforms.base import ActionResultItem
-from demo.GetPlatformItemInfo.platforms.crawlers.xhs.web.field import SearchSortType, SearchNoteType
-from demo.GetPlatformItemInfo.platforms.crawlers.xhs.web.help import sign, get_search_id
-from demo.GetPlatformItemInfo.platforms.crawlers.xhs.web.utils import convert_cookies
+from ...xhs.web.field import SearchSortType, SearchNoteType
+from ...xhs.web.help import sign, get_search_id
+from ...xhs.web.utils import convert_cookies
 
 
 def init_loging_config():
@@ -391,7 +390,6 @@ class XiaoHongShuClient:
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None,
         max_count: int = 10,
-        item: ActionResultItem = None,
     ) -> List[Dict]:
         """
         获取指定笔记下的所有一级评论，该方法会一直查找一个帖子下的所有评论信息
@@ -422,7 +420,7 @@ class XiaoHongShuClient:
             if len(result) + len(comments) > max_count:
                 comments = comments[: max_count - len(result)]
             if callback:
-                await callback(note_id, comments, item)
+                await callback(note_id, comments)
             await asyncio.sleep(crawl_interval)
             result.extend(comments)
             sub_comments = await self.get_comments_all_sub_comments(
@@ -499,3 +497,81 @@ class XiaoHongShuClient:
                 await asyncio.sleep(crawl_interval)
                 result.extend(comments)
         return result
+
+    async def get_all_notes_by_creator(
+        self,
+        user_id: str,
+        crawl_interval: float = 1.0,
+        count: int = 30,
+    ) -> List[Dict]:
+        """
+        获取指定用户下的所有发过的帖子，该方法会一直查找一个用户下的所有帖子信息
+        Args:
+            user_id: 用户ID
+            crawl_interval: 爬取一次的延迟单位（秒）
+            callback: 一次分页爬取结束后的更新回调函数
+
+        Returns:
+
+        """
+        result = []
+        notes_has_more = True
+        notes_cursor = ""
+        while notes_has_more and len(result) < count:
+            notes_res = await self.get_notes_by_creator(user_id, notes_cursor)
+            if not notes_res:
+                logger.error(
+                    f"[XiaoHongShuClient.get_notes_by_creator] The current creator may have been banned by xhs, so they cannot access the data."
+                )
+                break
+
+            notes_has_more = notes_res.get("has_more", False)
+            notes_cursor = notes_res.get("cursor", "")
+            if "notes" not in notes_res:
+                logger.info(
+                    f"[XiaoHongShuClient.get_all_notes_by_creator] No 'notes' key found in response: {notes_res}"
+                )
+                break
+
+            notes = notes_res["notes"]
+            logger.info(
+                f"[XiaoHongShuClient.get_all_notes_by_creator] got user_id:{user_id} notes len : {len(notes)}"
+            )
+
+            remaining = count - len(result)
+            if remaining <= 0:
+                break
+
+            notes_to_add = notes[:remaining]
+            # if callback:
+            #     await callback(notes_to_add)
+
+            result.extend(notes_to_add)
+            await asyncio.sleep(crawl_interval)
+
+        logger.info(
+            f"[XiaoHongShuClient.get_all_notes_by_creator] Finished getting notes for user {user_id}, total: {len(result)}"
+        )
+        return result
+
+    async def get_notes_by_creator(
+        self, creator: str, cursor: str, page_size: int = 30
+    ) -> Dict:
+        """
+        获取博主的笔记
+        Args:
+            creator: 博主ID
+            cursor: 上一页最后一条笔记的ID
+            page_size: 分页数据长度
+
+        Returns:
+
+        """
+        uri = "/api/sns/web/v1/user_posted"
+        data = {
+            "user_id": creator,
+            "cursor": cursor,
+            "num": page_size,
+            "image_formats": "jpg,webp,avif",
+        }
+        return await self.get(uri, data)

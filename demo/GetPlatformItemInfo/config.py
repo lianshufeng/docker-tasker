@@ -1,12 +1,13 @@
 # 定义并解析命令行参数。
 import argparse
 
+from platforms.xiaohongshu import XiaohongshuPlatformAction
 from platforms.base import PlatformAction
 from platforms.b import BPlatformAction
 from platforms.douyin import DouyinPlatformAction
 from platforms.kuaishou import KuaishouPlatformAction
 
-platform_items = [DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction]
+platform_items = [DouyinPlatformAction, KuaishouPlatformAction, BPlatformAction, XiaohongshuPlatformAction]
 
 
 # 构建平台实例
