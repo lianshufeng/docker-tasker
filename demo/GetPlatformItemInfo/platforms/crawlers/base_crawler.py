@@ -61,7 +61,7 @@ class BaseCrawler:
     def __init__(
             self,
             proxies: dict = None,
-            max_retries: int = 3,
+            max_retries: int = 1,
             max_connections: int = 50,
             timeout: int = 10,
             max_tasks: int = 50,

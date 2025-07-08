@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import random
+import re
 import time
 import traceback
 from urllib.parse import urljoin
@@ -68,7 +69,7 @@ PLUGIN_LIB = [
 
 async def make_browser_context(browser: Browser) -> BrowserContext:
     # ---- 基础参数 ----
-    CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
+    CHROME_VERSION = f'{random.randint(130, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
     user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
     width, height = 1920, 1080
     locale = "zh-CN"
@@ -80,12 +81,12 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
     plugins_js = json.dumps(plugins, ensure_ascii=False)
 
     # ---- 构造所有补丁脚本 ----
+    # Object.defineProperty(navigator, 'language', {{get: () = > '{locale}'}});
     patch_js = f"""
     // ---- navigator属性补丁 ----
     Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
     Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
     Object.defineProperty(navigator, 'oscpu', {{get: () => 'Windows NT 10.0; Win64; x64'}});
-    Object.defineProperty(navigator, 'language', {{get: () => '{locale}'}});
     Object.defineProperty(navigator, 'languages', {{get: () => ['zh-CN', 'zh', 'en']}});
     // ---- plugins补丁 ----
     (function () {{
@@ -105,14 +106,31 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
     }})();
     """
 
+    # 随机生成当前版本往前20个的版本号
+    page = await browser.new_page()
+    ua = await page.evaluate("() => navigator.userAgent")
+    print(f"原始 UA: {ua}")
+    match = re.search(r'Chrome/(\d+)\.', ua)
+    if not match:
+        raise Exception("无法识别Chrome版本！")
+    current_version = int(match.group(1))
+    print(f"当前浏览器主版本号: {current_version}")
+    ua_list = []
+    for v in range(current_version - 20, current_version):
+        new_ua = re.sub(r'Chrome/\d+\.', f'Chrome/{v}.', ua)
+        ua_list.append(new_ua)
+    random_ua = random.choice(ua_list)
+    print(f"随机选中的UA: {random_ua}")
+
+
     # ---- 创建context并注入补丁 ----
     context = await browser.new_context(
-        user_agent=user_agent,
+        user_agent=random_ua,
         # viewport=ViewportSize(width=width, height=height),
-        locale=locale,
-        timezone_id=timezone
+        # locale=locale,
+        # timezone_id=timezone
     )
-    await context.add_init_script(patch_js)
+    # await context.add_init_script(patch_js)
     return context
 
 # 异步执行，发现就关闭登录面板
