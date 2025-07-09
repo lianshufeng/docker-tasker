@@ -1,6 +1,9 @@
 pydantic>=v2.11.5
 httpx>=0.28.1
 
+bilibili_api_python==17.3.0
+#bilibili_api==4.1.0
+
 # 抖音解析
 douyin-tiktok-scraper>=1.2.9
 
@@ -50,6 +53,3 @@ tenacity~=9.0.0
 uvicorn>=0.34.0
 
 playwright>=1.52.0
-
-bilibili_api==4.1.0
-bilibili_api_python==17.3.0
