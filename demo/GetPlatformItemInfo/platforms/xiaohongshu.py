@@ -46,8 +46,6 @@ class XiaohongshuPlatformAction(PlatformAction):
 
         # TODO 假设cookie通过该方式传入
         cookie: str = os.getenv("SCRIPT_COOKIE", None)
-
-        cookie = "a1=1975cd84b780ksq1cu1i0f8xq5biv1e5pjhv18kuo50000352039;webId=fe18afd746eddb67980d51229b9ef2ed;web_session=040069b640ea2523dfec923f5e3a4bfe285cba"
         # TODO 代理传入
         httpx_proxy = ""
         _crawler = XiaoHongShuCrawler()
@@ -66,8 +64,6 @@ class XiaohongshuPlatformAction(PlatformAction):
 
         # TODO 假设cookie通过该方式传入
         cookie: str = os.getenv("SCRIPT_COOKIE", None)
-
-        cookie = "a1=1975cd84b780ksq1cu1i0f8xq5biv1e5pjhv18kuo50000352039;webId=fe18afd746eddb67980d51229b9ef2ed;web_session=040069b640ea2523dfec923f5e3a4bfe285cba"
         # TODO 代理传入
         httpx_proxy = ""
         _crawler = XiaoHongShuCrawler()
