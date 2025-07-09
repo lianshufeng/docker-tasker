@@ -4,7 +4,7 @@ from typing import Optional, Dict, List, Tuple
 from playwright.async_api import BrowserContext, Page, Cookie
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_result
 
-from demo.GetPlatformItemInfo.platforms.crawlers.xhs.web import utils
+from ..web import utils
 
 
 def convert_str_cookie_to_dict(cookie_str: str) -> Dict:

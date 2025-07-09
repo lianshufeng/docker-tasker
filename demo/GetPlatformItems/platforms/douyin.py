@@ -1,11 +1,13 @@
 import asyncio
+import json
 import logging
 import random
+import re
 import time
 import traceback
 from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext, ViewportSize
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
 
@@ -23,39 +25,113 @@ douyin_page_home = 'https://www.douyin.com'
 
 
 # 构建context
+# async def make_browser_context(browser: Browser) -> BrowserContext:
+#     # 定义浏览器信息
+#     CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
+#     USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
+#     PLATFORM = 'Windows'
+#     APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
+#     APP_NAME = 'Netscape'
+#     context = await browser.new_context(
+#         extra_http_headers={
+#             'User-Agent': USER_AGENT,
+#             'sec-ch-ua': f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not/A)Brand";v="24"',
+#             'sec-ch-ua-mobile': '?0',
+#             'sec-ch-ua-platform': f'"{PLATFORM}"',
+#         }
+#     )
+#     # 注入自定义 JavaScript，修改浏览器的 navigator 对象，隐藏真实信息
+#     await context.add_init_script(f"""
+#         Object.defineProperty(navigator, 'userAgent', {{
+#             get: () => '{USER_AGENT}'
+#         }});
+#         Object.defineProperty(navigator, 'platform', {{
+#             get: () => '{PLATFORM}'
+#         }});
+#         Object.defineProperty(navigator, 'appVersion', {{
+#             get: () => '{APP_VERSION}'
+#         }});
+#         Object.defineProperty(navigator, 'appName', {{
+#             get: () => '{APP_NAME}'
+#         }});
+#     """)
+#
+#     return context
+
+# 常见插件库
+PLUGIN_LIB = [
+    {"name":"Chrome PDF Plugin", "filename":"internal-pdf-viewer", "description":"Portable Document Format"},
+    {"name":"Chrome PDF Viewer", "filename":"mhjfbmdgcfjbbpaeojofohoefgiehjai", "description":""},
+    {"name":"Native Client", "filename":"internal-nacl-plugin", "description":""},
+    {"name":"Widevine Content Decryption Module", "filename":"widevinecdmadapter.dll", "description":"Enables Widevine licenses for playback of HTML audio/video content."},
+    {"name":"Shockwave Flash", "filename":"pepflashplayer.dll", "description":"Shockwave Flash 32.0 r0"}
+]
+
 async def make_browser_context(browser: Browser) -> BrowserContext:
-    # 定义浏览器信息
-    CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
-    USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-    PLATFORM = 'Windows'
-    APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-    APP_NAME = 'Netscape'
+    # ---- 基础参数 ----
+    CHROME_VERSION = f'{random.randint(130, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
+    user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
+    width, height = 1920, 1080
+    locale = "zh-CN"
+    timezone = "Asia/Shanghai"
+
+    # ---- 随机插件 ----
+    n = random.randint(3, 4)
+    plugins = random.sample(PLUGIN_LIB, n)
+    plugins_js = json.dumps(plugins, ensure_ascii=False)
+
+    # ---- 构造所有补丁脚本 ----
+    # Object.defineProperty(navigator, 'language', {{get: () = > '{locale}'}});
+    patch_js = f"""
+    // ---- navigator属性补丁 ----
+    Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+    Object.defineProperty(navigator, 'platform', {{get: () => 'Win32'}});
+    Object.defineProperty(navigator, 'oscpu', {{get: () => 'Windows NT 10.0; Win64; x64'}});
+    Object.defineProperty(navigator, 'languages', {{get: () => ['zh-CN', 'zh', 'en']}});
+    // ---- plugins补丁 ----
+    (function () {{
+      const fakePluginArray = {plugins_js};
+      fakePluginArray.item = function(i) {{ return this[i]; }};
+      fakePluginArray.namedItem = function(name) {{
+        return this.find(plugin => plugin.name === name) || null;
+      }};
+      fakePluginArray.refresh = function() {{ return undefined; }};
+      Object.defineProperty(fakePluginArray, 'length', {{
+        get: function() {{ return fakePluginArray.length; }}
+      }});
+      Object.defineProperty(navigator, 'plugins', {{
+        get: function() {{ return fakePluginArray; }},
+        configurable: true
+      }});
+    }})();
+    """
+
+    # 随机生成当前版本往前20个的版本号
+    page = await browser.new_page()
+    ua = await page.evaluate("() => navigator.userAgent")
+    print(f"原始 UA: {ua}")
+    match = re.search(r'Chrome/(\d+)\.', ua)
+    if not match:
+        raise Exception("无法识别Chrome版本！")
+    current_version = int(match.group(1))
+    print(f"当前浏览器主版本号: {current_version}")
+    ua_list = []
+    for v in range(current_version - 20, current_version):
+        new_ua = re.sub(r'Chrome/\d+\.', f'Chrome/{v}.', ua)
+        ua_list.append(new_ua)
+    random_ua = random.choice(ua_list)
+    print(f"随机选中的UA: {random_ua}")
+
+
+    # ---- 创建context并注入补丁 ----
     context = await browser.new_context(
-        extra_http_headers={
-            'User-Agent': USER_AGENT,
-            'sec-ch-ua': f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not/A)Brand";v="24"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': f'"{PLATFORM}"',
-        }
+        user_agent=random_ua,
+        # viewport=ViewportSize(width=width, height=height),
+        # locale=locale,
+        # timezone_id=timezone
     )
-    # 注入自定义 JavaScript，修改浏览器的 navigator 对象，隐藏真实信息
-    await context.add_init_script(f"""
-        Object.defineProperty(navigator, 'userAgent', {{
-            get: () => '{USER_AGENT}'
-        }});
-        Object.defineProperty(navigator, 'platform', {{
-            get: () => '{PLATFORM}'
-        }});
-        Object.defineProperty(navigator, 'appVersion', {{
-            get: () => '{APP_VERSION}'
-        }});
-        Object.defineProperty(navigator, 'appName', {{
-            get: () => '{APP_NAME}'
-        }});
-    """)
-
+    # await context.add_init_script(patch_js)
     return context
-
 
 # 异步执行，发现就关闭登录面板
 async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) -> bool:
@@ -219,8 +295,9 @@ class DouyinPlatformAction(PlatformAction):
             '--disable-infobars',
             '--no-first-run',
             '--no-default-browser-check',
-            f'--window-size={width},{height}',
-            '--window-position=0,0',
+            # f'--window-size={width},{height}',
+            # '--window-position=0,0',
+            '--disable-features=ExternalProtocolDialog'
             # '--blink-settings=imagesEnabled=false'
         ]
         if proxy:
@@ -232,10 +309,7 @@ class DouyinPlatformAction(PlatformAction):
                 executable_path=chrome_path,
                 args=args_list,
             )
-
             context: BrowserContext = await make_browser_context(browser)
-            # context:BrowserContext = await browser.new_context()
-
             page = await context.new_page()
 
             # 设置 cookies
