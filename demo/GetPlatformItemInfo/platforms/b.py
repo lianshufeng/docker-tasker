@@ -55,6 +55,7 @@ class BPlatformAction(PlatformAction):
     async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
         result: list[FeedsItem] = []
         try:
+            await self._random_delay()  # 随机延迟防止被封
             u = user.User(uid=uid)
             # 获取用户所有视频
             videos = await u.get_videos()
