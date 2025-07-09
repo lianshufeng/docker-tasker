@@ -3,11 +3,15 @@ import logging
 import random
 import re
 from typing import Optional
+import requests
+import json
 
 from douyin_tiktok_scraper.scraper import Scraper
 
-from .base import PlatformAction, ActionResultItem, Comment
+from .base import PlatformAction, ActionResultItem, Comment, FeedsItem
 from .crawlers.bilibili.web.web_crawler import BilibiliWebCrawler
+from bilibili_api import user
+
 
 # 配置日志格式
 logging.basicConfig(
@@ -47,6 +51,24 @@ def filter_duplicate_comments(comments: list[Comment]) -> list[Comment]:
 
 class BPlatformAction(PlatformAction):
     """B站平台操作实现类"""
+
+    async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
+        result: list[FeedsItem] = []
+        try:
+            u = user.User(uid=uid)
+            # 获取用户所有视频
+            videos = await u.get_videos()
+            print('===', videos)
+
+            if videos['list']['vlist']:
+                for video in videos['list']['vlist']:
+                    url = f'https://www.douyin.com/video/{video['bvid']}'
+                    title = video['title']
+                    result.append(FeedsItem(url=url, title=title))
+        except Exception as e:
+            logger.error("获取用户%s的视频列表 时出错: %s", uid, str(e))
+        print('数量：', len(result))
+        return result
 
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
         """
