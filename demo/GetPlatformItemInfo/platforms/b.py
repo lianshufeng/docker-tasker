@@ -63,7 +63,7 @@ class BPlatformAction(PlatformAction):
 
             if videos['list']['vlist']:
                 for video in videos['list']['vlist']:
-                    url = f'https://www.douyin.com/video/{video['bvid']}'
+                    url = f'https://www.bilibili.com/video/{video['bvid']}'
                     title = video['title']
                     result.append(FeedsItem(url=url, title=title))
         except Exception as e:
