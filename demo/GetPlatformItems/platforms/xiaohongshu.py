@@ -10,7 +10,8 @@ class XiaoHongShuPlatformAction(PlatformAction):
         max_size: int = kwargs.get('max_size') or 999
         proxy = os.getenv("HTTPS_PROXY", None)
 
-
+        if not cookies:
+            raise ValueError("cookies 未设置或为空，请检查配置。")
 
         xiaohongshuCrawler = XiaoHongShuCrawler()
         actionResult = ActionResult()
