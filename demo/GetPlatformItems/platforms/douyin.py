@@ -7,7 +7,7 @@ import time
 import traceback
 from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext, ViewportSize
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
 
@@ -121,6 +121,7 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
         ua_list.append(new_ua)
     random_ua = random.choice(ua_list)
     print(f"随机选中的UA: {random_ua}")
+    await page.close()
 
 
     # ---- 创建context并注入补丁 ----
@@ -189,7 +190,7 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
 
     # 只看视频按钮
     video_btn = await page.locator(
-        'xpath=//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div/div/span[2]').element_handle(timeout=10000)
+        'xpath=//*[@id="search-content-area"]/div/div[1]/div[1]/div[1]/div[1]/div/span[3]').element_handle(timeout=10000)
     if video_btn:
         logger.info("选择仅过滤视频")
         await video_btn.click()
