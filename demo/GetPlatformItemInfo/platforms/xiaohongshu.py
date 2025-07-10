@@ -31,6 +31,12 @@ class XiaohongshuPlatformAction(PlatformAction):
 
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
 
+        # TODO 假设cookie通过该方式传入
+        cookie: str = os.getenv("SCRIPT_COOKIE", None)
+        if not cookie:
+            raise ValueError("环境变量 SCRIPT_COOKIE 未设置或为空，请检查配置。")
+
+
         item: ActionResultItem = ActionResultItem()
         item.comments = []
 
@@ -44,8 +50,6 @@ class XiaohongshuPlatformAction(PlatformAction):
             max_comment_count = 800
             logger.info(f"comment: skip_count - max_count: %s - %s ", skip_comment_count, max_comment_count)
 
-        # TODO 假设cookie通过该方式传入
-        cookie: str = os.getenv("SCRIPT_COOKIE", None)
         # TODO 代理传入
         httpx_proxy = ""
         _crawler = XiaoHongShuCrawler()
@@ -55,6 +59,12 @@ class XiaohongshuPlatformAction(PlatformAction):
         return item
 
     async def author_feeds_list(self, uid: str, cursor: int = 0, count: int = 30, *args, **kwargs) -> list[FeedsItem]:
+
+        # TODO 假设cookie通过该方式传入
+        cookie: str = os.getenv("SCRIPT_COOKIE", None)
+        if not cookie:
+            raise ValueError("环境变量 SCRIPT_COOKIE 未设置或为空，请检查配置。")
+
         cursor = int(cursor)
         count = int(count)
 
@@ -62,8 +72,7 @@ class XiaohongshuPlatformAction(PlatformAction):
 
         count: int = count + cursor
 
-        # TODO 假设cookie通过该方式传入
-        cookie: str = os.getenv("SCRIPT_COOKIE", None)
+
         # TODO 代理传入
         httpx_proxy = ""
         _crawler = XiaoHongShuCrawler()
