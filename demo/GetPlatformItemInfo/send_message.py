@@ -29,6 +29,9 @@ def _parse_args() -> dict:
     parser.add_argument("-p", type=str, default="douyin", choices=names, help=f"平台名: {names}")
 
     # 平台用户的会话
+    parser.add_argument("--proxy", type=str, default=None, help=f"是否使用代理", required=False)
+
+    # 平台用户的会话
     parser.add_argument("--cookies", type=str, default=20, help=f"平台的用户的登录信息(会话)", required=True)
 
     # 用户id
@@ -77,11 +80,12 @@ async def main():
     cookies: str = _config.get("cookies")
     uid: str = _config.get("uid")
     message: str = _config.get("message")
+    proxy: str = _config.get("proxy")
 
     try:
         platform_action: PlatformAction = make_platform_from_type(platform_name)
-        await platform_action.send_message(cookies, uid, message)
-        Result(success=True, platform=platform_name, uid=uid).print()
+        ret: [bool, str] = await platform_action.send_message(proxy=proxy, cookies=cookies, uid=uid, message=message)
+        Result(success=ret[0], message=ret[1], platform=platform_name, uid=uid).print()
     except Exception as e:
         logger.error(e)
         logger.error("Traceback:\n%s", traceback.format_exc())
