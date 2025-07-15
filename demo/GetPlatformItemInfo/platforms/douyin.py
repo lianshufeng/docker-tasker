@@ -8,7 +8,6 @@ import traceback
 from douyin_tiktok_scraper.scraper import Scraper
 
 from .base import PlatformAction, ActionResultItem, find_first_playable_video, Comment, FeedsItem
-from .crawlers.douyin.web.web_crawler import DouyinWebCrawler
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -18,7 +17,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _scraper = Scraper()
-_douyin_web_crawler = DouyinWebCrawler()
+
+__douyin_web_crawler = None
+
+
+# 动态加载
+def _douyin_web_crawler():
+    from .crawlers.douyin.web.web_crawler import DouyinWebCrawler
+    global __douyin_web_crawler
+    if __douyin_web_crawler is None:
+        __douyin_web_crawler = DouyinWebCrawler()
+    return __douyin_web_crawler
 
 
 # 寻找一个最合适的视频
@@ -47,7 +56,7 @@ def find_best_video(bit_rate_list):
 
 # 分页查询所有的评论
 async def page_comments(comments: list[Comment], video_id: str, cursor: int = 0, max_comment_count: int = 800):
-    comments_dict: dict = await _douyin_web_crawler.fetch_video_comments(aweme_id=video_id, cursor=cursor, count=20)
+    comments_dict: dict = await _douyin_web_crawler().fetch_video_comments(aweme_id=video_id, cursor=cursor, count=20)
     if comments_dict.get("status_code") == 0:
 
         # 总数
@@ -122,9 +131,13 @@ class DouyinPlatformAction(PlatformAction):
     def type(self):
         return "douyin"
 
+    # 获取作者的作品
+    async def send_message(self, cookies: str, uid: str, message: str, *args, **kwargs):
+        pass
+
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
 
-        ret = await _douyin_web_crawler.fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
+        ret = await _douyin_web_crawler().fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
 
         ret = ret.text
 
@@ -134,7 +147,7 @@ class DouyinPlatformAction(PlatformAction):
 
     # 获取作者的作品
     async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
-        ret = await _douyin_web_crawler.fetch_user_post_videos(sec_user_id=uid, max_cursor=cursor, count=count)
+        ret = await _douyin_web_crawler().fetch_user_post_videos(sec_user_id=uid, max_cursor=cursor, count=count)
         if ret is None:
             return []
         aweme_list = ret.get('aweme_list', None)
@@ -170,7 +183,7 @@ class DouyinPlatformAction(PlatformAction):
         logger.info("douyin video id: %s", video_id)
         item.id = video_id
 
-        video_info: dict[str, dict] = await _douyin_web_crawler.fetch_one_video(video_id)
+        video_info: dict[str, dict] = await _douyin_web_crawler().fetch_one_video(video_id)
         aweme_detail: dict = video_info.get('aweme_detail')
         if aweme_detail is None:
             return None

@@ -2,12 +2,11 @@ import argparse
 import asyncio
 import logging
 import traceback
-from typing import Any
 
 from pydantic import BaseModel
 
 from config import platform_items, make_platform_from_type
-from platforms.base import PlatformAction, FeedsItem
+from platforms.base import PlatformAction
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -22,22 +21,21 @@ def platform_names():
 
 
 def _parse_args() -> dict:
-    parser = argparse.ArgumentParser(description="获取作者的作品")
+    parser = argparse.ArgumentParser(description="给平台用户发送私信")
 
     names: list[str] = platform_names()
 
     # 支持的平台
-    parser.add_argument("-p", type=str, default="douyin", choices=names,
-                        help=f"平台名: {names}")
+    parser.add_argument("-p", type=str, default="douyin", choices=names, help=f"平台名: {names}")
 
-    # 项id/视频的id
+    # 平台用户的会话
+    parser.add_argument("--cookies", type=str, default=20, help=f"平台的用户的登录信息(会话)", required=True)
+
+    # 用户id
     parser.add_argument("--uid", type=str, default=None, help=f"平台的用户id", required=True)
 
-    # 评论id
-    parser.add_argument("--cursor", type=str, default=0, help=f"从哪一个位置开始拉取数据", required=False)
-
-    # 回复内容
-    parser.add_argument("--count", type=str, default=20, help=f"指定本次接口调用希望获取多少条数据", required=False)
+    # 具体的消息
+    parser.add_argument("--message", type=str, default=0, help=f"具体的消息内容", required=True)
 
     return parser.parse_args().__dict__
 
@@ -55,9 +53,6 @@ class Result(BaseModel):
 
     # 用户id
     uid: str | None = None
-
-    # items
-    items: Any | None = None
 
     # cookies
     # cookies: str | None = None
@@ -79,14 +74,14 @@ async def main():
     # 平台名
     platform_name = _config.get("p")
 
+    cookies: str = _config.get("cookies")
     uid: str = _config.get("uid")
-    cursor: int = _config.get("cursor")
-    count: int = _config.get("count")
+    message: str = _config.get("message")
 
     try:
         platform_action: PlatformAction = make_platform_from_type(platform_name)
-        items: list[FeedsItem] = await platform_action.author_feeds_list(uid=uid, cursor=cursor, count=count)
-        Result(success=True, items=items, platform=platform_name, uid=uid).print()
+        await platform_action.send_message(cookies, uid, message)
+        Result(success=True, platform=platform_name, uid=uid).print()
     except Exception as e:
         logger.error(e)
         logger.error("Traceback:\n%s", traceback.format_exc())

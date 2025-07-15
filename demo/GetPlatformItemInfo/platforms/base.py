@@ -175,7 +175,6 @@ class FeedsItem(BaseModel):
     url: str
 
 
-
 class PlatformAction(BaseModel):
     # 执行任务
     async def action(self, url: str, *args, **kwargs) -> ActionResultItem:
@@ -186,6 +185,10 @@ class PlatformAction(BaseModel):
 
     # 获取作者的作品
     async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
+        pass
+
+    # 获取作者的作品
+    async def send_message(self, cookies: str, uid: str, message: str, *args, **kwargs) :
         pass
 
     # 取出平台类型

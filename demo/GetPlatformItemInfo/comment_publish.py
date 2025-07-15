@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def platform_names():
-    return [action().type() for action in platform_items]
+    return platform_items
 
 
 def _parse_args() -> dict:
