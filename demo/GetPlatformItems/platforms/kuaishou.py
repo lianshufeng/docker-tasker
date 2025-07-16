@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 import time
@@ -6,8 +7,9 @@ import uuid
 from urllib.parse import quote
 
 import httpx
+from playwright.async_api import async_playwright, BrowserContext
 
-from .base import ActionResultItem, PlatformAction, ActionResult
+from .base import ActionResultItem, PlatformAction, ActionResult, getChromeExecutablePath
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -208,15 +210,56 @@ query visionSearchPhoto($keyword: String, $pcursor: String, $searchSessionId: St
     _request(keyword, client, result, max_size, searchSessionId, pcursor)
 
 
+# 生成cookies
+async def make_cookies() -> str:
+    chrome: list = getChromeExecutablePath()
+    chrome_path = chrome[0] if chrome else None
+    if chrome_path is None:
+        raise RuntimeError("未找到可用的chrome")
+
+
+    args_list = [
+        '--incognito',
+        '--disable-infobars',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-features=ExternalProtocolDialog',
+        '--headless=new'
+    ]
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=False,
+            executable_path=chrome_path,
+            args=args_list,
+        )
+
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        await page.goto("https://www.baidu.com")
+        await asyncio.sleep(0.2)
+        await page.goto("https://www.kuaishou.com")
+        await asyncio.sleep(1)
+
+        # cookies
+        cookies = await page.context.cookies()
+        cookie_str = '; '.join([f"{c['name']}={c['value']}" for c in cookies])
+
+        await browser.close()  # 关闭浏览器
+        return cookie_str
+
+
 class KuaishouPlatformAction(PlatformAction):
 
     async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
 
         # 最大采集数量
         max_size: int = kwargs.get('max_size') or 100
-
         # 代理服务器
         proxy: str | None = kwargs.get('proxy', None)
+
+        make_cookies_str = await make_cookies()
 
         result = ActionResult()
         result.items = []
@@ -249,7 +292,8 @@ class KuaishouPlatformAction(PlatformAction):
             result.items = result.items[:max_size]
 
             # cookies
-            result.cookies = "; ".join([f"{k}={v}" for k, v in client.cookies.items()])
+            # result.cookies = "; ".join([f"{k}={v}" for k, v in client.cookies.items()])
+            result.cookies = make_cookies_str
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())

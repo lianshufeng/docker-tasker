@@ -1,4 +1,5 @@
 import logging
+import re
 
 from .base import PlatformAction, ActionResultItem
 
@@ -17,7 +18,8 @@ class KuaishouPlatformAction(PlatformAction):
         pass
 
     def filter(self, url: str) -> bool:
-        pass
+        pattern = r'^https://www\.kuaishou\.com/'
+        return re.match(pattern, url) is not None
 
     def type(self):
         return "kuaishou"

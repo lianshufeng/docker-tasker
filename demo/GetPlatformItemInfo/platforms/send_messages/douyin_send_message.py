@@ -10,7 +10,7 @@ import time
 import traceback
 from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext
+from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext, Locator
 
 # 日志配置
 logging.basicConfig(
@@ -23,40 +23,6 @@ width = 800
 height = 600
 
 douyin_page_home = 'https://www.douyin.com'
-
-# 构建context
-# async def make_browser_context(browser: Browser) -> BrowserContext:
-#     # 定义浏览器信息
-#     CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
-#     USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-#     PLATFORM = 'Windows'
-#     APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-#     APP_NAME = 'Netscape'
-#     context = await browser.new_context(
-#         extra_http_headers={
-#             'User-Agent': USER_AGENT,
-#             'sec-ch-ua': f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not/A)Brand";v="24"',
-#             'sec-ch-ua-mobile': '?0',
-#             'sec-ch-ua-platform': f'"{PLATFORM}"',
-#         }
-#     )
-#     # 注入自定义 JavaScript，修改浏览器的 navigator 对象，隐藏真实信息
-#     await context.add_init_script(f"""
-#         Object.defineProperty(navigator, 'userAgent', {{
-#             get: () => '{USER_AGENT}'
-#         }});
-#         Object.defineProperty(navigator, 'platform', {{
-#             get: () => '{PLATFORM}'
-#         }});
-#         Object.defineProperty(navigator, 'appVersion', {{
-#             get: () => '{APP_VERSION}'
-#         }});
-#         Object.defineProperty(navigator, 'appName', {{
-#             get: () => '{APP_NAME}'
-#         }});
-#     """)
-#
-#     return context
 
 # 常见插件库
 PLUGIN_LIB = [
@@ -128,9 +94,6 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
     # ---- 创建context并注入补丁 ----
     context = await browser.new_context(
         user_agent=random_ua,
-        # viewport=ViewportSize(width=width, height=height),
-        # locale=locale,
-        # timezone_id=timezone
     )
     # await context.add_init_script(patch_js)
     return context
@@ -180,18 +143,13 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
     await friend_page.goto(f"https://www.douyin.com/user/{uid}?from_tab_name=main")
     await asyncio.sleep(random.randint(500, 2000) / 1000)
 
-    # 点击私信按钮
-    # semi_button = await friend_page.locator('button.semi-button').element_handle(timeout=10000)
-    # semi_button = await friend_page.locator('//button[contains(@class, "semi-button")]').element_handle(timeout=10000)
-    # await semi_button.click()
-
-    async def find_semi_button_and_input_message(current: int, max_try: int):
+    async def find_semi_button_and_input_message(current: int, max_try: int)->bool:
         try:
             # 点击发送私信的按钮
             semi_button = await friend_page.locator('span.semi-button-content:has-text("私信")').first.element_handle(
                 timeout=10000)
             if semi_button is None:
-                return [False, None]
+                return False
 
             # 鼠标悬停
             await semi_button.hover()
@@ -202,18 +160,24 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
 
             msg_input = await friend_page.locator('[data-e2e="msg-input"]').element_handle(timeout=3000)
             await msg_input.type(message, delay=random.randint(30, 100))
+
+            # 发送消息
+            await msg_input.press('Enter')
+            logger.info("发送完成")
+            await asyncio.sleep(random.randint(1000, 3000) / 1000)
+            return True
         except Exception as e:
             logger.info(f"尝试触发私信功能 - {current}/{max_try}")
             await asyncio.sleep(1)
             if current <= max_try:
-                await find_semi_button_and_input_message(current=current + 1, max_try=max_try)
+                return await find_semi_button_and_input_message(current=current + 1, max_try=max_try)
+            else:
+                return False
 
     # 触发 私信按钮 , 触发输入框输入内容
-    await find_semi_button_and_input_message(1, 30)
+    input_success:bool = await find_semi_button_and_input_message(1, 30)
 
-    # todo 等发送按钮
-
-    pass
+    return [input_success, None]
 
 
 def getChromeExecutablePath() -> list[str]:
@@ -279,7 +243,6 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
         # 设置 cookies
         if cookies:
             cookie_list = [
-                # {'name': k, 'value': v, 'url': douyin_page_home}
                 {
                     'name': k,
                     'value': v,
@@ -291,8 +254,7 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
             await context.add_cookies(cookie_list)
 
         try:
-            await run_work(context=context, uid=uid, message=message)
-            return [True, None]
+            return await run_work(context=context, uid=uid, message=message)
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())
