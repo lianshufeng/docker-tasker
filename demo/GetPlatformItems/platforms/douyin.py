@@ -24,39 +24,6 @@ height = 600
 douyin_page_home = 'https://www.douyin.com'
 
 
-# 构建context
-# async def make_browser_context(browser: Browser) -> BrowserContext:
-#     # 定义浏览器信息
-#     CHROME_VERSION = f'{random.randint(80, 139)}.0.0.0'  # 修改为 137.0.0.0 版本
-#     USER_AGENT = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-#     PLATFORM = 'Windows'
-#     APP_VERSION = f'5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Safari/537.36'
-#     APP_NAME = 'Netscape'
-#     context = await browser.new_context(
-#         extra_http_headers={
-#             'User-Agent': USER_AGENT,
-#             'sec-ch-ua': f'"Google Chrome";v="{CHROME_VERSION}", "Chromium";v="{CHROME_VERSION}", "Not/A)Brand";v="24"',
-#             'sec-ch-ua-mobile': '?0',
-#             'sec-ch-ua-platform': f'"{PLATFORM}"',
-#         }
-#     )
-#     # 注入自定义 JavaScript，修改浏览器的 navigator 对象，隐藏真实信息
-#     await context.add_init_script(f"""
-#         Object.defineProperty(navigator, 'userAgent', {{
-#             get: () => '{USER_AGENT}'
-#         }});
-#         Object.defineProperty(navigator, 'platform', {{
-#             get: () => '{PLATFORM}'
-#         }});
-#         Object.defineProperty(navigator, 'appVersion', {{
-#             get: () => '{APP_VERSION}'
-#         }});
-#         Object.defineProperty(navigator, 'appName', {{
-#             get: () => '{APP_NAME}'
-#         }});
-#     """)
-#
-#     return context
 
 # 常见插件库
 PLUGIN_LIB = [
@@ -316,7 +283,12 @@ class DouyinPlatformAction(PlatformAction):
             # 设置 cookies
             if cookies:
                 cookie_list = [
-                    {'name': k, 'value': v, 'url': douyin_page_home}
+                    {
+                        'name': k,
+                        'value': v,
+                        'domain': '.douyin.com',  # 设置为整个主域
+                        'path': '/'  # 通常需要设置 path
+                    }
                     for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
                 ]
                 await context.add_cookies(cookie_list)
