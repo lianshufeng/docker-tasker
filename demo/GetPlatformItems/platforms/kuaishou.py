@@ -7,7 +7,7 @@ import uuid
 from urllib.parse import quote
 
 import httpx
-from playwright.async_api import async_playwright, BrowserContext
+from playwright.async_api import async_playwright
 
 from .base import ActionResultItem, PlatformAction, ActionResult, getChromeExecutablePath
 
@@ -136,7 +136,7 @@ query visionSearchPhoto($keyword: String, $pcursor: String, $searchSessionId: St
     __typename
   }
 }
-            """
+"""
 
     variables = {
         "keyword": keyword,
@@ -148,6 +148,7 @@ query visionSearchPhoto($keyword: String, $pcursor: String, $searchSessionId: St
 
     # variables = {
     #     "keyword": keyword,
+    #     "pcursor":pcursor,
     #     "page": "search"
     # }
 
@@ -155,10 +156,13 @@ query visionSearchPhoto($keyword: String, $pcursor: String, $searchSessionId: St
     graphql_query = {"query": query, "variables": variables}
     resp = client.post('https://www.kuaishou.com/graphql', json=graphql_query,
                        headers={
+                           'Host': 'www.kuaishou.com',
+                           'Accept-Language': 'zh-CN,zh;q=0.9',
                            'accept': '*/*',
                            'Content-Type': 'application/json',
-                           'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
-                           'Referer': 'https://www.kuaishou.com/search/video?searchKey=' + quote(keyword),
+                           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+                           'Origin': 'https://www.kuaishou.com',
+                           'Referer': 'https://www.kuaishou.com/search/video?searchKey=' + quote(keyword)
                        })
 
     # 取出feeds
@@ -211,12 +215,11 @@ query visionSearchPhoto($keyword: String, $pcursor: String, $searchSessionId: St
 
 
 # 生成cookies
-async def make_cookies() -> str:
+async def make_cookies(proxy: str) -> str:
     chrome: list = getChromeExecutablePath()
     chrome_path = chrome[0] if chrome else None
     if chrome_path is None:
         raise RuntimeError("未找到可用的chrome")
-
 
     args_list = [
         '--incognito',
@@ -227,11 +230,15 @@ async def make_cookies() -> str:
         '--headless=new'
     ]
 
+    if proxy is not None and proxy != "":
+        args_list.append(f'--proxy-server=http://{proxy}')
+
     async with async_playwright() as p:
+
         browser = await p.chromium.launch(
             headless=False,
             executable_path=chrome_path,
-            args=args_list,
+            args=args_list
         )
 
         context = await browser.new_context()
@@ -252,6 +259,8 @@ async def make_cookies() -> str:
 
 class KuaishouPlatformAction(PlatformAction):
 
+
+    # 建议配合代理运行
     async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
 
         # 最大采集数量
@@ -259,7 +268,8 @@ class KuaishouPlatformAction(PlatformAction):
         # 代理服务器
         proxy: str | None = kwargs.get('proxy', None)
 
-        make_cookies_str = await make_cookies()
+        # 生成cookies
+        cookies = await make_cookies(proxy=proxy)
 
         result = ActionResult()
         result.items = []
@@ -270,6 +280,11 @@ class KuaishouPlatformAction(PlatformAction):
 
         # cookie
         cookie_dict = dict(item.strip().split('=', 1) for item in cookies.strip(';').split(';') if item)
+        # 保留指定 key
+        keys_to_keep = {"kpf", "clientid", "did", "kpn"}
+
+        # 构建新的字典
+        cookie_dict = {k: v for k, v in cookie_dict.items() if k in keys_to_keep}
 
         # mounts = {
         #     "http://": httpx.HTTPTransport(proxy="http://127.0.0.1:8888", verify=False),
@@ -287,17 +302,14 @@ class KuaishouPlatformAction(PlatformAction):
 
         try:
             _request(keyword=keyword, client=client, result=result, max_size=max_size)
-
             # 仅返回最大上限
             result.items = result.items[:max_size]
-
-            # cookies
-            # result.cookies = "; ".join([f"{k}={v}" for k, v in client.cookies.items()])
-            result.cookies = make_cookies_str
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())
         finally:
             client.close()
 
+        # cookies
+        result.cookies = "; ".join(f"{k}={v}" for k, v in cookie_dict.items())
         return result
