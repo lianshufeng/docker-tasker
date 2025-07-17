@@ -259,7 +259,6 @@ async def make_cookies(proxy: str) -> str:
 
 class KuaishouPlatformAction(PlatformAction):
 
-
     # 建议配合代理运行
     async def action(self, keyword: str, cookies: str = None, *args, **kwargs) -> ActionResult:
 
@@ -312,4 +311,9 @@ class KuaishouPlatformAction(PlatformAction):
 
         # cookies
         result.cookies = "; ".join(f"{k}={v}" for k, v in cookie_dict.items())
+
+        if result.items is not None and len(result.items) > 0:
+            result.success = True
+            result.msg = None
+
         return result
