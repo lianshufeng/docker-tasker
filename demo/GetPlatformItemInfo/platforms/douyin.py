@@ -137,11 +137,11 @@ class DouyinPlatformAction(PlatformAction):
 
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
 
-        ret = await _douyin_web_crawler().fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
-
-        ret = ret.text
-
-        print(ret, ret)
+        # ret = await _douyin_web_crawler().fetch_comment_publish(aweme_id=_id, reply_id=cid, text=text)
+        #
+        # ret = ret.text
+        #
+        # print(ret, ret)
 
         return False
 
