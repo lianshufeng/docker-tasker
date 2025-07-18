@@ -1,12 +1,15 @@
+import asyncio
 import json
 import logging
 import os
+import random
 import re
+import traceback
 
 import httpx
 from bs4 import BeautifulSoup
 
-from .base import PlatformAction, ActionResultItem
+from .base import PlatformAction, ActionResultItem, Comment
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -14,6 +17,114 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+
+# 过滤重复的回复数据
+def filter_duplicate_comments(comments: list[Comment]) -> list[Comment]:
+    # Create a dictionary to store unique comments based on their cid
+    unique_comments = {}
+
+    for comment in comments:
+        if comment.cid not in unique_comments:
+            unique_comments[comment.cid] = comment
+
+    # Return the list of unique comments
+    return list(unique_comments.values())
+
+async def request_comment(item: ActionResultItem, cursor: str = None, max_comment_count: int = 800):
+    cookie: str = os.getenv("SCRIPT_COOKIE", None)
+    cookie_dict: dict[str, str] = {}
+    if cookie is not None:
+        cookie_dict = dict(item.strip().split('=', 1) for item in cookie.strip(';').split(';') if item)
+
+    id: str = item.id  # id
+
+    query: str = """
+query commentListQuery($photoId: String, $pcursor: String) {
+  visionCommentList(photoId: $photoId, pcursor: $pcursor) {
+    commentCount
+    pcursor
+    rootComments {
+      commentId
+      authorId
+      authorName
+      content
+      headurl
+      timestamp
+      likedCount
+      realLikedCount
+      liked
+      status
+      authorLiked
+      subCommentCount
+      subCommentsPcursor
+      subComments {
+        commentId
+        authorId
+        authorName
+        content
+        headurl
+        timestamp
+        likedCount
+        realLikedCount
+        liked
+        status
+        authorLiked
+        replyToUserName
+        replyTo
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}    
+"""
+
+    variables = {
+        "photoId": id,
+        "pcursor": cursor
+    }
+
+    # 使用 httpx 获取网页内容
+    with httpx.Client(timeout=30, cookies=cookie_dict) as client:
+        graphql_query = {"query": query, "variables": variables}
+        resp = client.post('https://www.kuaishou.com/graphql', json=graphql_query,
+                           headers={
+                               'Host': 'www.kuaishou.com',
+                               'Accept-Language': 'zh-CN,zh;q=0.9',
+                               'accept': '*/*',
+                               'Content-Type': 'application/json',
+                               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+                               'Origin': 'https://www.kuaishou.com',
+                               'Referer': f'https://www.kuaishou.com/short-video/{id}'
+                           })
+        ret: dict = resp.json()
+
+        data: dict = ret.get("data")
+        if data is None:
+            return
+        visionCommentList: dict = data.get("visionCommentList")
+        if visionCommentList is None:
+            return
+        item.statistics_comment_count = int(visionCommentList.get("commentCount"))  # 评论总数
+        rootComments: list[dict] = visionCommentList.get("rootComments")  # 评论列表
+        pcursor: str = visionCommentList.get("pcursor", "")  # 游标
+
+        for rootComment in rootComments:
+            comment: Comment = Comment()
+            comment.cid = rootComment.get("commentId")
+            comment.text = rootComment.get("content")
+            comment.uid = rootComment.get("authorId")
+            comment.nickname = rootComment.get("authorName")
+            comment.create_time = int(int(rootComment.get("timestamp")) / 1000)
+            comment.digg_count = int(rootComment.get("realLikedCount"))
+            item.comments.append(comment)
+
+        logger.info("page_comments : %s/%s", len(item.comments), item.statistics_comment_count)
+        if len(item.comments) < max_comment_count and len(item.comments) < item.statistics_comment_count:
+            await asyncio.sleep(random.randint(300, 1500) / 1000)
+            await request_comment(item=item, cursor=pcursor, max_comment_count=max_comment_count)
 
 
 # 访问网页并提取网页中存在的js对象并转换为dict
@@ -101,6 +212,19 @@ class KuaishouPlatformAction(PlatformAction):
             max_comment_count = 800
 
         logger.info(f"comment: skip_count - max_count: %s - %s ", skip_comment_count, max_comment_count)
+
+        # 评论
+        item.comments = []
+        try:
+            await request_comment(item=item, cursor="", max_comment_count=max_comment_count)
+        except Exception as e:
+            logger.error(e)
+            logger.error("Traceback:\n%s", traceback.format_exc())
+        # 过滤重复的数据
+        item.comments = filter_duplicate_comments(item.comments)
+
+        logger.info(f"comments size: {len(item.comments)}")
+
 
         return item
 
