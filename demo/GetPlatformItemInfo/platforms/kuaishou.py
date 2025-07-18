@@ -10,7 +10,7 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
-from .base import PlatformAction, ActionResultItem, Comment, getChromeExecutablePath
+from .base import PlatformAction, ActionResultItem, Comment, getChromeExecutablePath, FeedsItem
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -289,3 +289,7 @@ class KuaishouPlatformAction(PlatformAction):
 
     def type(self):
         return "kuaishou"
+
+    # 获取作者的作品
+    async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
+        pass
