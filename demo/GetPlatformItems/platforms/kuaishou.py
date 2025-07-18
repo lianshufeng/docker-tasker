@@ -251,7 +251,7 @@ async def make_cookies(proxy: str) -> str:
 
         # cookies
         cookies = await page.context.cookies()
-        cookie_str = '; '.join([f"{c['name']}={c['value']}" for c in cookies])
+        cookie_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies if '.kuaishou.com' in c.get('domain', '')])
 
         await browser.close()  # 关闭浏览器
         return cookie_str
