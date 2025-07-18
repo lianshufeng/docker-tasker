@@ -136,7 +136,6 @@ query commentListQuery($photoId: String, $pcursor: String) {
 
 # 访问网页并提取网页中存在的js对象并转换为dict
 async def request_page(url: str) -> [str, dict]:
-
     # cookies
     cookies: str = os.getenv("SCRIPT_COOKIE", None)
 
@@ -221,6 +220,167 @@ async def request_page(url: str) -> [str, dict]:
         return cookies, apollo_json
 
 
+async def request_feed(uid: str, cursor: int, count: int) -> list[FeedsItem]:
+    cookies: str = os.getenv("SCRIPT_COOKIE", None)
+
+    query: str = """
+fragment photoContent on PhotoEntity {
+  __typename
+  id
+  duration
+  caption
+  originCaption
+  likeCount
+  viewCount
+  commentCount
+  realLikeCount
+  coverUrl
+  photoUrl
+  photoH265Url
+  manifest
+  manifestH265
+  videoResource
+  coverUrls {
+    url
+    __typename
+  }
+  timestamp
+  expTag
+  animatedCoverUrl
+  distance
+  videoRatio
+  liked
+  stereoType
+  profileUserTopPhoto
+  musicBlocked
+  riskTagContent
+  riskTagUrl
+}
+
+fragment recoPhotoFragment on recoPhotoEntity {
+  __typename
+  id
+  duration
+  caption
+  originCaption
+  likeCount
+  viewCount
+  commentCount
+  realLikeCount
+  coverUrl
+  photoUrl
+  photoH265Url
+  manifest
+  manifestH265
+  videoResource
+  coverUrls {
+    url
+    __typename
+  }
+  timestamp
+  expTag
+  animatedCoverUrl
+  distance
+  videoRatio
+  liked
+  stereoType
+  profileUserTopPhoto
+  musicBlocked
+  riskTagContent
+  riskTagUrl
+}
+
+fragment feedContentWithLiveInfo on Feed {
+  type
+  author {
+    id
+    name
+    headerUrl
+    following
+    livingInfo
+    headerUrls {
+      url
+      __typename
+    }
+    __typename
+  }
+  photo {
+    ...photoContent
+    ...recoPhotoFragment
+    __typename
+  }
+  canAddComment
+  llsid
+  status
+  currentPcursor
+  tags {
+    type
+    name
+    __typename
+  }
+  __typename
+}
+
+query visionProfilePhotoList($pcursor: String, $userId: String, $page: String, $webPageArea: String, $profile_referer: String) {
+  visionProfilePhotoList(pcursor: $pcursor, userId: $userId, page: $page, webPageArea: $webPageArea, profile_referer: $profile_referer) {
+    result
+    llsid
+    webPageArea
+    feeds {
+      ...feedContentWithLiveInfo
+      __typename
+    }
+    hostName
+    pcursor
+    __typename
+  }
+}
+"""
+
+    variables = {
+        "userId": uid,
+        "pcursor": "",
+        "page": "profile",
+        "profile_referer": ""
+    }
+
+    # 使用 httpx 获取网页内容
+    with httpx.Client(timeout=30) as client:
+        graphql_query = {"query": query, "variables": variables}
+        resp = client.post('https://www.kuaishou.com/graphql', json=graphql_query,
+                           headers={
+                               'Host': 'www.kuaishou.com',
+                               'Accept-Language': 'zh-CN,zh;q=0.9',
+                               'accept': '*/*',
+                               'Content-Type': 'application/json',
+                               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+                               'Origin': 'https://www.kuaishou.com',
+                               'Referer': f'https://www.kuaishou.com/profile/{uid}',
+                               'Cookie': cookies
+                           })
+        ret: dict = resp.json()
+
+        result: list[FeedsItem] = []
+        data: dict = ret.get("data")
+        if data is None:
+            return result
+        visionProfilePhotoList: dict = data.get('visionProfilePhotoList')
+        if visionProfilePhotoList is None:
+            return result
+        feeds: list[dict] = visionProfilePhotoList.get('feeds')  # 作品列表
+        if feeds is None:
+            return result
+        for feed in feeds:
+            photo: dict = feed.get('photo')
+            if photo is not None:
+                photo_id: str = photo.get('id')
+                result.append(
+                    FeedsItem(title=photo.get('caption'), url=f"https://www.kuaishou.com/short-video/{photo_id}")
+                )
+
+        return result
+
+
 class KuaishouPlatformAction(PlatformAction):
 
     # 执行任务
@@ -292,4 +452,4 @@ class KuaishouPlatformAction(PlatformAction):
 
     # 获取作者的作品
     async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
-        pass
+        return await request_feed(uid=uid, cursor=cursor, count=count)
