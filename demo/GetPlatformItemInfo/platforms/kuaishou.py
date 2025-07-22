@@ -344,20 +344,24 @@ query visionProfilePhotoList($pcursor: String, $userId: String, $page: String, $
         "profile_referer": ""
     }
 
+    headers = {
+        'Host': 'www.kuaishou.com',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'accept': '*/*',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+        'Origin': 'https://www.kuaishou.com',
+        'Referer': f'https://www.kuaishou.com/profile/{uid}'
+    }
+
+    if cookies is not None:
+        headers['Cookie'] = cookies
+
     # 使用 httpx 获取网页内容
     with httpx.Client(timeout=30) as client:
         graphql_query = {"query": query, "variables": variables}
         resp = client.post('https://www.kuaishou.com/graphql', json=graphql_query,
-                           headers={
-                               'Host': 'www.kuaishou.com',
-                               'Accept-Language': 'zh-CN,zh;q=0.9',
-                               'accept': '*/*',
-                               'Content-Type': 'application/json',
-                               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
-                               'Origin': 'https://www.kuaishou.com',
-                               'Referer': f'https://www.kuaishou.com/profile/{uid}',
-                               'Cookie': cookies
-                           })
+                           headers=headers)
         ret: dict = resp.json()
 
         result: list[FeedsItem] = []
