@@ -143,7 +143,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
     await friend_page.goto(f"https://www.douyin.com/user/{uid}?from_tab_name=main")
     await asyncio.sleep(random.randint(500, 2000) / 1000)
 
-    async def find_semi_button_and_input_message(current: int, max_try: int)->bool:
+    async def find_semi_button_and_input_message(current: int, max_try: int) -> bool:
         try:
             # 点击发送私信的按钮
             semi_button = await friend_page.locator('span.semi-button-content:has-text("私信")').first.element_handle(
@@ -175,7 +175,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
                 return False
 
     # 触发 私信按钮 , 触发输入框输入内容
-    input_success:bool = await find_semi_button_and_input_message(1, 30)
+    input_success: bool = await find_semi_button_and_input_message(1, 30)
 
     return [input_success, None]
 
@@ -252,6 +252,14 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
                 for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
             ]
             await context.add_cookies(cookie_list)
+
+        # 抖音在linux下的cookies 防止弹窗出现打开界面
+        await context.add_cookies([{
+            'name': 'enter_pc_once',
+            'value': '1',
+            'domain': '.douyin.com',
+            'path': '/'
+        }])
 
         try:
             return await run_work(context=context, uid=uid, message=message)
