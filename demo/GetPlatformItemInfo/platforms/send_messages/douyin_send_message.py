@@ -126,7 +126,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
     page = await context.new_page()
 
     # 设置分辨率
-    await page.set_viewport_size({'width': width, 'height': height})
+    # await page.set_viewport_size({'width': width, 'height': height})
 
     # 打开首页
     await page.goto("https://www.baidu.com")
@@ -136,10 +136,13 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
     # 点击我的
     # user_self = await page.locator('.tab-user_self').element_handle(timeout=10000)
     # await user_self.click()
-    await asyncio.sleep(random.randint(50, 300) / 1000)
+    await asyncio.sleep(random.randint(1500, 3000) / 1000)
+    await page.reload()
+    await asyncio.sleep(random.randint(1500, 4000) / 1000)
 
     # 访问好友
-    friend_page = await context.new_page()
+    # friend_page = await context.new_page()
+    friend_page = page
     await friend_page.goto(f"https://www.douyin.com/user/{uid}?from_tab_name=main")
     await asyncio.sleep(random.randint(500, 2000) / 1000)
 
@@ -164,7 +167,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
             # 发送消息
             await msg_input.press('Enter')
             logger.info("发送完成")
-            await asyncio.sleep(random.randint(1000, 3000) / 1000)
+            await asyncio.sleep(random.randint(2000, 4000) / 1000)
             return True
         except Exception as e:
             logger.info(f"尝试触发私信功能 - {current}/{max_try}")
