@@ -14,6 +14,10 @@ RUN mkdir -p /var/lib/apt/lists/partial && \
         fonts-wqy-microhei \
         python3 \
         python3-dev \
+        x11-apps \
+        python3-tk \
+        python3-dev \
+        gnome-screenshot\
         python3-pip && \
     locale-gen zh_CN.UTF-8 && \
     update-locale LANG=zh_CN.UTF-8 && \

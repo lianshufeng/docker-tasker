@@ -8,9 +8,10 @@ import shutil
 import sys
 import time
 import traceback
-from urllib.parse import urljoin
 
-from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext, Locator
+from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+
+from ..util.image_utils import find_and_click_image
 
 # 日志配置
 logging.basicConfig(
@@ -148,6 +149,9 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
 
     async def find_semi_button_and_input_message(current: int, max_try: int) -> bool:
         try:
+            # 找到取消按钮并点击
+            find_and_click_image("res/cancel_button.png", threshold=0.9)
+
             # 点击发送私信的按钮
             semi_button = await friend_page.locator('span.semi-button-content:has-text("私信")').first.element_handle(
                 timeout=10000)
@@ -164,10 +168,13 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
             msg_input = await friend_page.locator('[data-e2e="msg-input"]').element_handle(timeout=3000)
             await msg_input.type(message, delay=random.randint(30, 100))
 
+            # 找到取消按钮并点击
+            find_and_click_image("res/cancel_button.png", threshold=0.9)
+
             # 发送消息
             await msg_input.press('Enter')
             logger.info("发送完成")
-            await asyncio.sleep(random.randint(2000, 4000) / 1000)
+            await asyncio.sleep(random.randint(2500, 5000) / 1000)
             return True
         except Exception as e:
             logger.info(f"尝试触发私信功能 - {current}/{max_try}")
@@ -255,14 +262,6 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
                 for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
             ]
             await context.add_cookies(cookie_list)
-
-        # 抖音在linux下的cookies 防止弹窗出现打开界面
-        await context.add_cookies([{
-            'name': 'enter_pc_once',
-            'value': '1',
-            'domain': '.douyin.com',
-            'path': '/'
-        }])
 
         try:
             return await run_work(context=context, uid=uid, message=message)
