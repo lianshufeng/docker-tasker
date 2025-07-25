@@ -1,4 +1,4 @@
-FROM selenium/standalone-chrome:136.0-20250606
+FROM selenium/standalone-chrome:138.0-20250717
 
 
 USER 0
@@ -10,6 +10,9 @@ RUN mkdir -p /var/lib/apt/lists/partial && \
         locales \
         fonts-wqy-zenhei \
         fonts-wqy-microhei \
+        python3-tk \
+        python3-dev \
+        gnome-screenshot \
         python3 \
         python3-pip && \
     locale-gen zh_CN.UTF-8 && \

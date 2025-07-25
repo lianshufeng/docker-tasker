@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 from playwright.async_api import async_playwright, Page, Browser, ElementHandle, BrowserContext
 
 from .base import PlatformAction, getChromeExecutablePath, ActionResult, ActionResultItem
+from .util.image_utils import find_and_click_image
 
 # 日志配置
 logging.basicConfig(
@@ -101,6 +102,12 @@ async def make_browser_context(browser: Browser) -> BrowserContext:
     # await context.add_init_script(patch_js)
     return context
 
+
+# 关闭xdg_open 的提示框(docker下运行存在)
+async def close_xdg_open_window_handel():
+    find_and_click_image('res/cancel_button.png', threshold=0.9)
+    pass
+
 # 异步执行，发现就关闭登录面板
 async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) -> bool:
     start_time = time.time()
@@ -129,10 +136,17 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
     # 设置分辨率
     await page.set_viewport_size({'width': width, 'height': height})
 
+    # 异步关闭 xdg_open 的窗口
+    async def loop_close_xdg_open_window_handel():
+        while True:
+            await close_xdg_open_window_handel()
+            await asyncio.sleep(1)
+    asyncio.create_task(loop_close_xdg_open_window_handel())
+
     # 打开首页
     await page.goto("https://www.baidu.com")
     await asyncio.sleep(0.2)
-    await page.goto(douyin_page_home)
+    await page.goto(douyin_page_home,timeout=60*1000)
 
     for _ in range(3):  # 容错3次还无法
         if (await close_login_panel(page, True, 10.0)) is True:

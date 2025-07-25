@@ -7,3 +7,10 @@ httpx>=0.28.1
 playwright>=1.52.0
 
 tenacity==8.2.2
+
+
+
+# 屏幕找图并点击： python3-tk python3-dev gnome-screenshot
+opencv-python>=4.12.0
+PyAutoGUI>=0.9.54
+Pillow
