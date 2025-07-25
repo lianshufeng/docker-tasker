@@ -29,6 +29,9 @@ def _parse_args() -> dict:
     parser.add_argument("-p", type=str, default="douyin", choices=names, help=f"平台名: {names}")
 
     # 平台用户的会话
+    parser.add_argument("--item_id", type=str, default=None, help=f"平台的项的id(资源id)", required=False)
+
+    # 平台用户的会话
     parser.add_argument("--proxy", type=str, default=None, help=f"是否使用代理", required=False)
 
     # 平台用户的会话
@@ -53,6 +56,9 @@ class Result(BaseModel):
 
     # 平台名
     platform: str | None = None
+
+    # item 的 id
+    item_id: str | None = None
 
     # 用户id
     uid: str | None = None
@@ -81,11 +87,12 @@ async def main():
     uid: str = _config.get("uid")
     message: str = _config.get("message")
     proxy: str = _config.get("proxy")
+    item_id: str = _config.get("item_id")
 
     try:
         platform_action: PlatformAction = make_platform_from_type(platform_name)
-        ret: [bool, str] = await platform_action.send_message(proxy=proxy, cookies=cookies, uid=uid, message=message)
-        Result(success=ret[0], message=ret[1], platform=platform_name, uid=uid).print()
+        ret: [bool, str] = await platform_action.send_message(**_config)
+        Result(success=ret[0], message=ret[1], platform=platform_name, item_id=item_id, uid=uid).print()
     except Exception as e:
         logger.error(e)
         logger.error("Traceback:\n%s", traceback.format_exc())
