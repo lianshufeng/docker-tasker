@@ -185,7 +185,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
                 return False
 
     # 触发 私信按钮 , 触发输入框输入内容
-    input_success: bool = await find_semi_button_and_input_message(1, 30)
+    input_success: bool = await find_semi_button_and_input_message(1, 6)
 
     return [input_success, None]
 
