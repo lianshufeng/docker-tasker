@@ -12,7 +12,6 @@ from .base import PlatformAction, ActionResultItem, Comment, FeedsItem
 from .crawlers.bilibili.web.web_crawler import BilibiliWebCrawler
 from bilibili_api import user
 
-
 # 配置日志格式
 logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
@@ -52,6 +51,7 @@ def filter_duplicate_comments(comments: list[Comment]) -> list[Comment]:
 class BPlatformAction(PlatformAction):
     """B站平台操作实现类"""
 
+    #  拉取用户的视频列表
     async def author_feeds_list(self, uid: str, cursor: int, count: int, *args, **kwargs) -> list[FeedsItem]:
         result: list[FeedsItem] = []
         try:
@@ -59,7 +59,7 @@ class BPlatformAction(PlatformAction):
             u = user.User(uid=uid)
             # 获取用户所有视频
             videos = await u.get_videos()
-            print('===', videos)
+            # print('===', videos)
 
             if videos['list']['vlist']:
                 for video in videos['list']['vlist']:
