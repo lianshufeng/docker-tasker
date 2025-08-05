@@ -8,6 +8,7 @@ import traceback
 from douyin_tiktok_scraper.scraper import Scraper
 
 from .base import PlatformAction, ActionResultItem, find_first_playable_video, Comment, FeedsItem
+from .reply_messages.douyin_reply_message import douyin_reply_message
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -134,6 +135,10 @@ class DouyinPlatformAction(PlatformAction):
     async def send_message(self, proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> [bool, str]:
         from .send_messages.douyin_send_message import douyin_send_message
         return await douyin_send_message(proxy=proxy, cookies=cookies, uid=uid, message=message, *args, **kwargs)
+
+    async def reply_message(self, proxy: str, cookies: str, *args, **kwargs) -> [bool, str]:
+        await douyin_reply_message(proxy=proxy, cookies=cookies, *args, **kwargs)
+        logger.info("reply_message 执行完毕")
 
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
 
