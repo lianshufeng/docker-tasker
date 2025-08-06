@@ -8,6 +8,9 @@ import shutil
 import sys
 import time
 import traceback
+from urllib.parse import urlparse
+
+import requests
 
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 
@@ -24,6 +27,8 @@ width = 800
 height = 600
 
 douyin_page_home = 'https://www.douyin.com'
+
+ai_url = "http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5"
 
 # 常见插件库
 PLUGIN_LIB = [
@@ -136,7 +141,7 @@ async def run_work(context: BrowserContext):
     # 点击“私信”图标（等它出现再点）
     await page.locator("//div[@class='vUlcfDbY d5oQ4GPx XuCIp3h8']").wait_for()
     await page.locator("//div[@class='vUlcfDbY d5oQ4GPx XuCIp3h8']").click()
-
+    await asyncio.sleep(1)
     # 等待私信窗口出现
     message_entry = page.locator("div._zym1kAG.nAPRGU5n")
     await message_entry.wait_for(timeout=5000)
@@ -153,7 +158,6 @@ async def run_work(context: BrowserContext):
 
     while True:
         await asyncio.sleep(2)
-
         # 获取所有消息容器
         message_blocks = page.locator("div.mM66nPpS.FlSUmcba > div")
         message_count = await message_blocks.count()
@@ -170,15 +174,35 @@ async def run_work(context: BrowserContext):
                 if await text_locator.count() > 0:
                     content = await text_locator.first.text_content()
                     if content:
+                        print(content.strip())
                         message_texts.append(content.strip())
             else:
                 # 未满足条件，触发回复操作
-                editor = page.locator("div.DraftEditor-root")
-                await editor.click()
-                await editor.type("111")
+                if len(message_texts) > 0:
+                    async with context.expect_page() as new_page_info:
+                        await page.locator("div.txZU3UOS").click()
+                    new_page = await new_page_info.value
+                    current_url = new_page.url
+                    user_id = urlparse(current_url).path.strip("/").split("/")[1]
 
-                send_btn = page.locator("span.PygT7Ced.e2e-send-msg-btn")
-                await send_btn.click()
+                    data = {
+                        "uid": user_id,
+                        "messages": message_texts
+                    }
+                    response = requests.post(ai_url, json=data)
+                    # 解析响应为 JSON 对象
+                    res_json = response.json()
+
+                    # 提取 content 内的数据
+                    is_reply = res_json["content"]["isReply"]
+                    message = res_json["content"]["message"]
+                    if is_reply:
+                        await page.bring_to_front()
+                        editor = page.locator("div.DraftEditor-root")
+                        await editor.click()
+                        await editor.type(message)
+                        send_btn = page.locator("span.PygT7Ced.e2e-send-msg-btn")
+                        await send_btn.click()
                 break  # 当前会话结束，进入下一个
 
         # 尝试进入下一个红点会话
@@ -189,7 +213,6 @@ async def run_work(context: BrowserContext):
         else:
             print("无更多会话，结束循环")
             break
-
 
 
 def getChromeExecutablePath() -> list[str]:
