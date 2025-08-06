@@ -192,7 +192,7 @@ class PlatformAction(BaseModel):
         pass
 
     # 回复私信
-    async def reply_message(self, proxy: str, cookies: str, *args, **kwargs) -> [bool, str]:
+    async def reply_message(self, proxy: str, cookies: str, ai: str, *args, **kwargs) -> [bool, str]:
         pass
 
     # 取出平台类型

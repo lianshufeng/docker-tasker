@@ -28,7 +28,7 @@ height = 600
 
 douyin_page_home = 'https://www.douyin.com'
 
-ai_url = "http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5"
+# ai_url = "http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5"
 
 # 常见插件库
 PLUGIN_LIB = [
@@ -127,7 +127,7 @@ async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) ->
         await asyncio.sleep(0.1)
 
 
-async def run_work(context: BrowserContext):
+async def run_work(context: BrowserContext,ai:str):
     page = await context.new_page()
 
     # 打开首页（可跳过）
@@ -189,7 +189,7 @@ async def run_work(context: BrowserContext):
                         "uid": user_id,
                         "messages": message_texts
                     }
-                    response = requests.post(ai_url, json=data)
+                    response = requests.post(ai, json=data)
                     # 解析响应为 JSON 对象
                     res_json = response.json()
 
@@ -251,7 +251,7 @@ def getChromeExecutablePath() -> list[str]:
 
 
 # 抖音发送消息
-async def douyin_reply_message(proxy: str, cookies: str, *args, **kwargs) -> [bool, str]:
+async def douyin_reply_message(proxy: str, cookies: str,ai: str, *args, **kwargs) -> [bool, str]:
     chrome: list = getChromeExecutablePath()
     chrome_path = chrome[0] if chrome else None
     if chrome_path is None:
@@ -289,7 +289,7 @@ async def douyin_reply_message(proxy: str, cookies: str, *args, **kwargs) -> [bo
             await context.add_cookies(cookie_list)
 
         try:
-            return await run_work(context=context)
+            return await run_work(context=context,ai=ai)
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())

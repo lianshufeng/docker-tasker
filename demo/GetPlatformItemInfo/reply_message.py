@@ -37,6 +37,9 @@ def _parse_args() -> dict:
     # 平台用户的会话
     parser.add_argument("--cookies", type=str, default=20, help=f"平台的用户的登录信息(会话)", required=True)
 
+    # 回复ai链接
+    parser.add_argument("-ai", type=str, default="http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5", help=f"模型地址", required=True)
+
     return parser.parse_args().__dict__
 
 
