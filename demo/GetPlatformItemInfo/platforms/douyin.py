@@ -136,9 +136,10 @@ class DouyinPlatformAction(PlatformAction):
         from .send_messages.douyin_send_message import douyin_send_message
         return await douyin_send_message(proxy=proxy, cookies=cookies, uid=uid, message=message, *args, **kwargs)
 
-    async def reply_message(self, proxy: str, cookies: str, ai: str, *args, **kwargs) -> [bool, str]:
-        await douyin_reply_message(proxy=proxy, cookies=cookies, ai=ai, *args, **kwargs)
-        logger.info("reply_message 执行完毕")
+    async def reply_message(self, proxy: str, cookies: str, ai_url: str, max_chat_count: int, *args, **kwargs) -> [bool, str]:
+        await douyin_reply_message(proxy=proxy, cookies=cookies, ai_url=ai_url,max_chat_count=max_chat_count, *args, **kwargs)
+        # logger.info("reply_message 执行完毕")
+        return True, "reply_message 执行完毕"
 
     async def comment_publish(self, _id: str, cid: str, text: str, *args, **kwargs) -> bool:
 
