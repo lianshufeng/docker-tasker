@@ -136,8 +136,13 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
 
     # 打开 Douyin 主页
     await page.goto("https://www.douyin.com/")
-    # 弹窗加载时间
-    await asyncio.sleep(6)
+
+    async def loop_close_xdg_open_window_handel():
+        while True:
+            await close_xdg_open_window_handel()
+            await asyncio.sleep(1)
+
+    asyncio.create_task(loop_close_xdg_open_window_handel())
     # 找到取消按钮并点击
     find_and_click_image("res/cancel_button.png", threshold=0.9)
     await page.locator("text=取消").wait_for()
@@ -229,6 +234,10 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
             print("无更多会话，结束循环")
             break
 
+
+async def close_xdg_open_window_handel():
+    find_and_click_image('res/cancel_button.png', threshold=0.9)
+    pass
 
 def add_user_event(user_id):
     """给用户ID计数 +1"""
