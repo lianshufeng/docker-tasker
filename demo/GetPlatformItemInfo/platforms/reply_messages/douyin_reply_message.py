@@ -136,8 +136,10 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
 
     # 打开 Douyin 主页
     await page.goto("https://www.douyin.com/")
-    # 拦截带有特殊协议的跳转
-
+    # 弹窗加载时间
+    await asyncio.sleep(6)
+    # 找到取消按钮并点击
+    find_and_click_image("res/cancel_button.png", threshold=0.9)
     await page.locator("text=取消").wait_for()
     await page.locator("text=取消").click()
     locator = page.locator("text=私信")
