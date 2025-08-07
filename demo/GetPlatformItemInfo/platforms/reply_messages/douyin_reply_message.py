@@ -136,16 +136,17 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
 
     # 打开 Douyin 主页
     await page.goto("https://www.douyin.com/")
-    await asyncio.sleep(1)
+    # 拦截带有特殊协议的跳转
 
-    # 点击“私信”图标（等它出现再点）
-    await page.locator("//div[@class='vUlcfDbY d5oQ4GPx XuCIp3h8']").wait_for()
-    await page.locator("//div[@class='vUlcfDbY d5oQ4GPx XuCIp3h8']").click()
-    await asyncio.sleep(1)
+    await page.locator("text=取消").wait_for()
+    await page.locator("text=取消").click()
+    locator = page.locator("text=私信")
+    await locator.wait_for(timeout=9000)
+    await locator.click()
     # 等待私信窗口出现
-    message_entry = page.locator("div._zym1kAG.nAPRGU5n")
-    await message_entry.wait_for(timeout=5000)
-
+    await page.locator('[data-e2e="listDlg-container"]').wait_for()
+    message_entry = page.locator('[data-e2e="listDlg-container"]')
+    await asyncio.sleep(3)
     # 查找所有有未读消息标记（红点）的会话
     red_dot_items = message_entry.locator('[x-semi-prop="count"]')
 
@@ -159,9 +160,10 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
     while True:
         await asyncio.sleep(2)
         # 获取所有消息容器
-        message_blocks = page.locator("div.mM66nPpS.FlSUmcba > div")
-        message_count = await message_blocks.count()
 
+        message_blocks = page.locator(
+            '//div[contains(@style, "display: flex") and contains(@style, "justify-content")]')
+        message_count = await message_blocks.count()
         message_texts = []
 
         for i in range(message_count):
@@ -169,10 +171,16 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
             style = await msg.evaluate("el => el.getAttribute('style')")
 
             if style and "justify-content: space-between" in style:
-                # 查找文字内容
-                text_locator = msg.locator("div.hQY1D5w6")
+                # await msg.text_content()
+                # # 查找文字内容
+                # if '暂不支持该消息类型' in await msg.text_content():
+                #     continue
+                # else:
+                #
+
+                text_locator = msg.locator("pre")
                 if await text_locator.count() > 0:
-                    content = await text_locator.first.text_content()
+                    content = await text_locator.text_content()
                     if content:
                         print(content.strip())
                         message_texts.append(content.strip())
@@ -201,9 +209,10 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
                         message = res_json["content"]["message"]
                         # if is_reply:
                         await page.bring_to_front()
-                        editor = page.locator("div.DraftEditor-root")
+                        editor = page.locator('div[role="textbox"][aria-describedby^="placeholder-"]')
                         await editor.click()
                         await editor.type(message)
+
                         send_btn = page.locator("span.PygT7Ced.e2e-send-msg-btn")
                         await send_btn.click()
                         add_user_event(user_id)
