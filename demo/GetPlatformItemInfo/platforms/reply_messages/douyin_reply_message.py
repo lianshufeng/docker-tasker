@@ -8,9 +8,11 @@ import shutil
 import sys
 import time
 import traceback
+from typing import Any, Coroutine
 from urllib.parse import urlparse
 
 import requests
+from celery.worker.consumer.mingle import exception
 
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 
@@ -127,7 +129,7 @@ async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) ->
         await asyncio.sleep(0.1)
 
 
-async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
+async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int, no_chat_timeout: int):
     page = await context.new_page()
 
     # 打开首页（可跳过）
@@ -136,8 +138,8 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
 
     # 打开 Douyin 主页
     await page.goto("https://www.douyin.com/")
-    # 弹窗加载时间
-    await asyncio.sleep(9)
+    await page.locator("text=取消").wait_for()
+    await page.locator("text=取消").click()
     # 找到取消按钮并点击
     find_and_click_image("res/cancel_button.png", threshold=0.9)
 
@@ -147,8 +149,6 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
             await asyncio.sleep(1)
 
     asyncio.create_task(loop_close_xdg_open_window_handel())
-    # await page.locator("text=取消").wait_for()
-    # await page.locator("text=取消").click()
     locator = page.locator("text=私信")
     await locator.wait_for(timeout=9000)
     await locator.click()
@@ -167,26 +167,36 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
         return
 
     while True:
-        await asyncio.sleep(2)
-        # 获取所有消息容器
+        await send_message(page=page, context=context, ai_url=ai_url, max_chat_count=max_chat_count)
+        await asyncio.sleep(no_chat_timeout)
+        next = await next_item(page=page)
+        if next:
+            await send_message(page=page, context=context, ai_url=ai_url, max_chat_count=max_chat_count)
+        else:
+            break
 
-        message_blocks = page.locator(
-            '//div[contains(@style, "display: flex") and contains(@style, "justify-content")]')
-        message_count = await message_blocks.count()
-        message_texts = []
+
+async def close_xdg_open_window_handel():
+    find_and_click_image('res/cancel_button.png', threshold=0.9)
+    pass
+
+
+async def send_message(page:Page, context: BrowserContext, ai_url: str, max_chat_count: int) -> bool | None:
+    await asyncio.sleep(2)
+    # 获取所有消息容器
+
+    message_blocks = page.locator(
+        '//div[contains(@style, "display: flex") and contains(@style, "justify-content")]')
+    message_count = await message_blocks.count()
+    message_texts = []
+    try:
 
         for i in range(message_count):
             msg = message_blocks.nth(i)
             style = await msg.evaluate("el => el.getAttribute('style')")
 
             if style and "justify-content: space-between" in style:
-                # await msg.text_content()
-                # # 查找文字内容
-                # if '暂不支持该消息类型' in await msg.text_content():
-                #     continue
-                # else:
-                #
-
+                # 读取消息
                 text_locator = msg.locator("pre")
                 if await text_locator.count() > 0:
                     content = await text_locator.text_content()
@@ -228,19 +238,23 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
                         await asyncio.sleep(1)
                         add_user_event(user_id)
                 break  # 当前会话结束，进入下一个
+    except Exception:
+        print("执行失败")
+    next = await next_item(page)
 
-        # 尝试进入下一个红点会话
-        next_item = page.locator('div.K_ckXK2o').locator('[x-semi-prop="count"]')
+    if next:
+        await send_message(page, context, ai_url, max_chat_count)
+    else:
+        return True
 
-        if await next_item.count() > 0:
-            await next_item.nth(0).click()
-        else:
-            print("无更多会话，结束循环")
-            break
 
-async def close_xdg_open_window_handel():
-    find_and_click_image('res/cancel_button.png', threshold=0.9)
-    pass
+async def next_item(page):
+    next_item = page.locator('div.K_ckXK2o').locator('[x-semi-prop="count"]')
+    if await next_item.count() > 0:
+        await next_item.nth(0).click()
+        return True
+    else:
+        return False
 
 
 def add_user_event(user_id):
@@ -292,7 +306,8 @@ def getChromeExecutablePath() -> list[str]:
 
 
 # 抖音发送消息
-async def douyin_reply_message(proxy: str, cookies: str, ai_url: str, max_chat_count: int, *args, **kwargs):
+async def douyin_reply_message(proxy: str, cookies: str, ai_url: str, max_chat_count: int, no_chat_timeout: int, *args,
+                               **kwargs):
     chrome: list = getChromeExecutablePath()
     chrome_path = chrome[0] if chrome else None
     if chrome_path is None:
@@ -330,7 +345,8 @@ async def douyin_reply_message(proxy: str, cookies: str, ai_url: str, max_chat_c
             await context.add_cookies(cookie_list)
 
         try:
-            return await run_work(context=context, ai_url=ai_url, max_chat_count=max_chat_count)
+            return await run_work(context=context, ai_url=ai_url, max_chat_count=max_chat_count,
+                                  no_chat_timeout=no_chat_timeout)
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())

@@ -43,6 +43,8 @@ def _parse_args() -> dict:
 
     parser.add_argument("-max_chat_count", type=int, default=20, help=f"会话次数", required=False)
 
+    parser.add_argument("-no_chat_timeout", type=int, default=10, help=f"没有会话超时时间", required=False)
+
     return parser.parse_args().__dict__
 
 
