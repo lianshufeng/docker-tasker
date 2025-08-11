@@ -140,6 +140,13 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
     await asyncio.sleep(9)
     # 找到取消按钮并点击
     find_and_click_image("res/cancel_button.png", threshold=0.9)
+
+    async def loop_close_xdg_open_window_handel():
+        while True:
+            await close_xdg_open_window_handel()
+            await asyncio.sleep(1)
+
+    asyncio.create_task(loop_close_xdg_open_window_handel())
     # await page.locator("text=取消").wait_for()
     # await page.locator("text=取消").click()
     locator = page.locator("text=私信")
@@ -230,6 +237,10 @@ async def run_work(context: BrowserContext, ai_url: str, max_chat_count: int):
         else:
             print("无更多会话，结束循环")
             break
+
+async def close_xdg_open_window_handel():
+    find_and_click_image('res/cancel_button.png', threshold=0.9)
+    pass
 
 
 def add_user_event(user_id):
