@@ -192,7 +192,7 @@ class PlatformAction(BaseModel):
         pass
 
     # 回复私信
-    async def reply_message(self, proxy: str, cookies: str, callback: str, max_chat_count: int, *args, **kwargs) -> [bool,
+    async def reply_message(self, proxy: str, cookies: str, ai_url: str, max_chat_count: int, *args, **kwargs) -> [bool,
                                                                                                                    str]:
         pass
 
