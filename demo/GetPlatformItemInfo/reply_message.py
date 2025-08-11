@@ -38,7 +38,7 @@ def _parse_args() -> dict:
     parser.add_argument("--cookies", type=str, default=20, help=f"平台的用户的登录信息(会话)", required=True)
 
     # 回复ai链接
-    parser.add_argument("-ai_url", type=str, default="http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5", help=f"模型地址", required=True)
+    parser.add_argument("-callback", type=str, default="http://192.168.32.205:9910/customerCall/free/runUserReplayCallBack/68818a218d41a59a6beb30d5", help=f"模型地址", required=True)
 
 
     parser.add_argument("-max_chat_count", type=int, default=20, help=f"会话次数", required=False)
