@@ -174,7 +174,7 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
             # 发送消息
             await msg_input.press('Enter')
             logger.info("发送完成")
-            await asyncio.sleep(random.randint(2500, 5000) / 1000)
+            await asyncio.sleep(random.randint(5000, 10000) / 1000)
             return True
         except Exception as e:
             logger.info(f"尝试触发私信功能 - {current}/{max_try}")
