@@ -8,12 +8,9 @@ import shutil
 import sys
 import time
 import traceback
-from typing import Any, Coroutine
 from urllib.parse import urlparse
 
 import requests
-from celery.worker.consumer.mingle import exception
-
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 
 from ..util.image_utils import find_and_click_image
