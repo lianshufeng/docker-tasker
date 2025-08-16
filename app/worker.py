@@ -89,7 +89,7 @@ class CallbackTask(Task):
                     "Content-Type": "application/json",
                     "Task-Id": task_id
                 }
-                response = requests.post(callback, json=retval, headers=headers, timeout=6)
+                response = requests.post(callback, json=retval, headers=headers, timeout=60)
                 logger.info(f"callback: {response.status_code} - {response.text}")
             except Exception as e:
                 logger.error(f"回调通知失败:{e}")

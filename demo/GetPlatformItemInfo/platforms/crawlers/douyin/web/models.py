@@ -1,3 +1,4 @@
+import random
 import urllib
 from typing import Any, List
 
@@ -12,35 +13,35 @@ class BaseRequestModel(BaseModel):
     aid: str = "6383"
     channel: str = "channel_pc_web"
     pc_client_type: int = 1
-    version_code: str = "290100"
-    version_name: str = "29.1.0"
+    version_code: str = str(random.randint(290000, 291000))
+    version_name: str = f"29.{random.randint(0,10)}.{random.randint(0,5)}"
     cookie_enabled: str = "true"
-    screen_width: int = 1920
-    screen_height: int = 1080
+    screen_width: int = random.choice([1920, 1366, 2560, 3840])
+    screen_height: int = random.choice([1080, 768, 1440, 2160])
     browser_language: str = "zh-CN"
     browser_platform: str = "Win32"
     browser_name: str = "Chrome"
-    browser_version: str = "130.0.0.0"
+    browser_version: str = f"{random.randint(120,139)}.0.0.0"   # 保持原始结构
     browser_online: str = "true"
     engine_name: str = "Blink"
-    engine_version: str = "130.0.0.0"
+    engine_version: str = f"{random.randint(120,139)}.0.0.0"    # 同结构随机
     os_name: str = "Windows"
-    os_version: str = "10"
-    cpu_core_num: int = 12
-    device_memory: int = 8
+    os_version: str = random.choice(["10", "11"])
+    cpu_core_num: int = random.choice([4, 6, 8, 12, 16])
+    device_memory: int = random.choice([4, 8, 16, 32])
     platform: str = "PC"
-    downlink: str = "10"
-    effective_type: str = "4g"
+    downlink: str = str(random.choice([5, 10, 20, 50]))
+    effective_type: str = random.choice(["4g", "5g", "wifi"])
     from_user_page: str = "1"
     locate_query: str = "false"
     need_time_list: str = "1"
-    pc_libra_divert: str = "Windows"
+    pc_libra_divert: str = random.choice(["Windows", "Win64"])
     publish_video_strategy_type: str = "2"
-    round_trip_time: str = "0"
+    round_trip_time: str = str(random.randint(20, 200))
     show_live_replay_strategy: str = "1"
     time_list_query: str = "0"
     whale_cut_token: str = ""
-    update_version_code: str = "170400"
+    update_version_code: str = str(random.randint(171000, 175000))
     msToken: str = TokenManager.gen_real_msToken()
 
 

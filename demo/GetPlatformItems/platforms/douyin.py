@@ -143,21 +143,29 @@ async def run_work(keyword: str, page: Page, result: ActionResult, max_size: int
             await asyncio.sleep(1)
     asyncio.create_task(loop_close_xdg_open_window_handel())
 
+
+    # 异步关闭 登录 的窗口
+    async def loop_close_login_panel():
+        while True:
+            await close_login_panel(page, True, 10.0)
+            await asyncio.sleep(1)
+    asyncio.create_task(loop_close_login_panel())
+
     # 打开首页
     await page.goto("https://www.baidu.com")
     await asyncio.sleep(0.2)
     await page.goto(douyin_page_home,timeout=60*1000)
 
-    for _ in range(3):  # 容错3次还无法
-        if (await close_login_panel(page, True, 10.0)) is True:
-            break
-        await page.reload()
+    # for _ in range(3):  # 容错3次还无法
+    #     if (await close_login_panel(page, True, 10.0)) is True:
+    #         break
+    #     await page.reload()
 
     await asyncio.sleep(2)
     await page.goto('about:blank')
     await asyncio.sleep(0.3)
     await page.go_back()
-    await close_login_panel(page, True)
+    # await close_login_panel(page, True)
 
     # 输入关键词
     input_element = await page.locator('[data-e2e="searchbar-input"]').element_handle(timeout=5000)
