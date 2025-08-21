@@ -1,14 +1,28 @@
 import logging
-from typing import Any
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List
 
 import uvicorn
 from celery.result import AsyncResult
-from fastapi import FastAPI, Body, HTTPException
+from fastapi import FastAPI, Body, HTTPException, Query
+from kombu.exceptions import OperationalError
+from kombu.simple import SimpleQueue
 from starlette.middleware.cors import CORSMiddleware
 
-from app.worker import app as celery_app, run_code_task, run_docker_task, run_process_message
+from app.worker import app as celery_app, run_docker_task
+from app.workers_stats_monitor import start_worker_ping_monitor, stop_worker_ping_monitor, get_cached_workers
 
-app = FastAPI(title="分布式任务接口文档")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时运行监控线程
+    start_worker_ping_monitor(interval=30, timeout=10.0)
+    yield
+    # 关闭时停止监控线程
+    stop_worker_ping_monitor()
+
+
+app = FastAPI(title="分布式任务接口文档", lifespan=lifespan)
 
 # 日志配置，建议你根据生产环境实际需要调整
 logging.basicConfig(
@@ -65,8 +79,6 @@ def run_docker(data: dict = Body(..., example={
         f"countdown={countdown}, expires={expires}, callback={callback}"
     )
 
-
-
     if not image or not command:
         raise HTTPException(status_code=400, detail="缺少镜像或命令参数")
 
@@ -104,23 +116,6 @@ def run_code(data: dict = Body(..., example={
     if not code:
         raise HTTPException(status_code=500, detail="代码不能为空")
 
-    # 提取通用参数
-    max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
-
-    task = run_code_task.apply_async(kwargs={
-        "code": code,
-        "max_retries": max_retries,
-        "retry_delay": retry_delay,
-        "callback": callback
-    },
-        retry=True,
-        max_retries=max_retries,
-        queue=queue,  # 队列名
-        countdown=countdown,
-        expires=expires,
-    )
-    return {"task_id": task.id}
-
 
 @app.post("/api/process_message", tags=["process_message"])
 def process_message(data: dict = Body(..., example={
@@ -139,21 +134,6 @@ def process_message(data: dict = Body(..., example={
     message_content = data.get('message_content', None)
     if not message_content:
         raise HTTPException(status_code=500, detail="消息内容不能为空")
-
-    # 回调地址
-    max_retries, retry_delay, queue, countdown, expires, callback = get_parameter(data)
-
-    task = run_process_message.apply_async(kwargs={
-        "message_content": message_content,
-        "callback": callback
-    },
-        retry=True,
-        max_retries=max_retries,
-        queue=queue,  # 队列名
-        countdown=countdown,
-        expires=expires,
-    )
-    return {"task_id": task.id}
 
 
 # 查询任务状态
@@ -175,6 +155,45 @@ def delete_task(task_id: str):
         raise HTTPException(status_code=400, detail="任务已执行，无法删除")
     result.forget()  # 删除任务结果（不影响已执行）
     return {"msg": "任务结果已清除", "task_id": task_id}
+
+
+# 查询任务队列
+@app.get("/api/count/task", tags=["task"])
+def count_tasks(
+        queue_names: List[str] = Query(
+            default=["celery"],
+            description="要查询的队列名数组，默认只查 'celery'"
+        )
+) -> Dict[str, int]:
+    results: Dict[str, int] = {}
+    try:
+        with celery_app.connection_or_acquire() as conn:
+            for name in queue_names:
+                q = None
+                try:
+                    q = SimpleQueue(conn, name, queue_opts={"durable": True})
+                    results[name] = q.qsize()
+                except Exception as e:
+                    print(e)
+                finally:
+                    if q is not None:
+                        q.close()
+        return results
+    except OperationalError as e:
+        raise HTTPException(status_code=503, detail=f"Broker unavailable: {e}")
+
+
+@app.get(
+    "/api/workers/count",
+    tags=["worker"],
+    summary="查询在线的 Celery workers 数量",
+    description=(
+            "通过 `celery_app.control.ping` 以广播方式探测在线 worker，统计可响应的 worker 数量。\n"
+            "仅统计当前可达（在给定超时内回复）的 worker；不可达/超时不计入。"
+    )
+)
+def count_workers():
+    return get_cached_workers()
 
 
 if __name__ == '__main__':
