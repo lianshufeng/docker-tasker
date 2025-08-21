@@ -158,7 +158,7 @@ def delete_task(task_id: str):
 
 
 # 查询任务队列
-@app.get("/api/count/task", tags=["task"])
+@app.get("/api/count/task", tags=["count"])
 def count_tasks(
         queue_names: List[str] = Query(
             default=["celery"],
@@ -184,8 +184,8 @@ def count_tasks(
 
 
 @app.get(
-    "/api/workers/count",
-    tags=["worker"],
+    "/api/count/workers",
+    tags=["count"],
     summary="查询在线的 Celery workers 数量",
     description=(
             "通过 `celery_app.control.ping` 以广播方式探测在线 worker，统计可响应的 worker 数量。\n"
