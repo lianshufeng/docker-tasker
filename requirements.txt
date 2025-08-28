@@ -2,6 +2,8 @@ fastapi>=0.115.0
 uvicorn>=0.34.0
 
 celery>=5.5.3
+msgpack>=1.0.5,<2.0   # ← 新增：给 Celery/Kombu 提供 msgpack 序列化支持
+
 redis>=5.0.0
 
 
