@@ -9,7 +9,7 @@ import sys
 import time
 import traceback
 
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+from playwright.async_api import async_playwright, Page, Browser, BrowserContext, JSHandle
 
 from ..util.image_utils import find_and_click_image
 
@@ -122,7 +122,48 @@ async def close_login_panel(page: Page, is_exit: bool, timeout: float = 20.0) ->
         await asyncio.sleep(0.1)
 
 
-async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | str]:
+# 检查当前用户是否登录状态
+async def check_user_login(page: Page) -> list[bool | str]:
+    locator = await page.query_selector_all(
+        '//*[@id="douyin-header-menuCt"]//a[@href="//www.douyin.com/user/self"]')
+    if len(locator) > 0:
+        return [True, '']
+    else:
+        return [False, '未登录']
+
+
+# 检查好友是否存在
+async def check_friend_user_exist(page: Page) -> list[bool | str]:
+    error_page = page.locator('[data-e2e="error-page"]')
+    error_page_count = await page.locator('[data-e2e="error-page"]').count()
+    if error_page_count > 0:
+        error_page = await error_page.nth(0).element_handle(timeout=1000)
+        return [False, (await error_page.inner_text()).strip()]
+    else:
+        return [True, '']
+
+
+# 检查发送私信状态,必须用于发消息之后监测
+async def check_send_message_state(page: Page) -> list[bool | str]:
+    msg_content_locator = page.locator('xpath=//*[@id="messageContent"]/div/div[3]').locator(
+        'div[data-e2e="msg-item-content"]')
+
+    # 取出数据 msg
+    msg_items = msg_content_locator.locator('> div').nth(0).locator('> div')
+
+    # 取出div数量
+    div_count = await msg_items.count()
+
+    # 如果只有一个则说明大概率是发送成功了
+    if div_count == 1:
+        return [True, '']
+    else:
+        error_handle = await msg_items.nth(div_count - 1).element_handle(timeout=1000)
+        msg_error_text: str = (await error_handle.inner_text()).strip()
+        return [False, msg_error_text]  # 如果只有一个则说明大概率是发送成功了
+
+
+async def run_work(context: BrowserContext, uid: str, message: str) -> list[bool | str]:
     # 首页
     page = await context.new_page()
 
@@ -141,32 +182,45 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
     await page.reload()
     await asyncio.sleep(random.randint(1500, 4000) / 1000)
 
+    # 检查是否登录状态
+    isLogin, err = await check_user_login(page)
+    if isLogin is not True:
+        return [isLogin, err]
+
     # 访问好友
     # friend_page = await context.new_page()
-    friend_page = page
-    await friend_page.goto(f"https://www.douyin.com/user/{uid}?from_tab_name=main")
+    # friend_page = page
+    await page.goto(f"https://www.douyin.com/user/{uid}?from_tab_name=main")
     await asyncio.sleep(random.randint(500, 2000) / 1000)
 
-    async def find_semi_button_and_input_message(current: int, max_try: int) -> bool:
+    async def find_semi_button_and_input_message(current: int, max_try: int) -> list[bool | str]:
         try:
             # 找到取消按钮并点击
             find_and_click_image("res/cancel_button.png", threshold=0.9)
 
+            # 检查好友是否存在
+
+            isExist, err = await check_friend_user_exist(page)
+            if isExist is not True:
+                return [isExist, err]
+
             # 点击发送私信的按钮
-            semi_button = await friend_page.locator('span.semi-button-content:has-text("私信")').first.element_handle(
+            semi_button = await page.locator('span.semi-button-content:has-text("私信")').first.element_handle(
                 timeout=10000)
             if semi_button is None:
-                return False
+                return [False, '未找到私信按钮']
 
             # 鼠标悬停
             await semi_button.hover()
             # 等待小动画（可选）
-            await friend_page.wait_for_timeout(random.randint(300, 800))
+            await page.wait_for_timeout(random.randint(300, 800))
             # 触发点击
             await semi_button.click(force=True)
 
-            msg_input = await friend_page.locator('[data-e2e="msg-input"]').element_handle(timeout=3000)
-            await msg_input.type(message, delay=random.randint(30, 100))
+            # 发送消息
+            msg_input = await page.locator('[data-e2e="msg-input"]').element_handle(timeout=3000)
+            await asyncio.sleep(random.randint(600, 1500) / 1000)
+            await msg_input.type(message, delay=random.randint(150, 400))
 
             # 找到取消按钮并点击
             find_and_click_image("res/cancel_button.png", threshold=0.9)
@@ -174,20 +228,22 @@ async def run_work(context: BrowserContext, uid: str, message: str) -> [bool | s
             # 发送消息
             await msg_input.press('Enter')
             logger.info("发送完成")
+
+            # 延迟判断,是否发送成功
             await asyncio.sleep(random.randint(2500, 5000) / 1000)
-            return True
+            return await check_send_message_state(page)
+
         except Exception as e:
             logger.info(f"尝试触发私信功能 - {current}/{max_try}")
+            logger.error(e)
             await asyncio.sleep(1)
             if current <= max_try:
                 return await find_semi_button_and_input_message(current=current + 1, max_try=max_try)
             else:
-                return False
+                return [False, '补偿发送私信失败']
 
     # 触发 私信按钮 , 触发输入框输入内容
-    input_success: bool = await find_semi_button_and_input_message(1, 6)
-
-    return [input_success, None]
+    return await find_semi_button_and_input_message(1, 6)
 
 
 def getChromeExecutablePath() -> list[str]:
@@ -226,7 +282,7 @@ def getChromeExecutablePath() -> list[str]:
 
 
 # 抖音发送消息
-async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> [bool, str]:
+async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> list[bool | str]:
     chrome: list = getChromeExecutablePath()
     chrome_path = chrome[0] if chrome else None
     if chrome_path is None:

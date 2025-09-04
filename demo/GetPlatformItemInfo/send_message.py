@@ -91,8 +91,8 @@ async def main():
 
     try:
         platform_action: PlatformAction = make_platform_from_type(platform_name)
-        ret: [bool, str] = await platform_action.send_message(**_config)
-        Result(success=ret[0], message=ret[1], platform=platform_name, item_id=item_id, uid=uid).print()
+        ret: list[bool | str] = await platform_action.send_message(**_config)
+        Result(success=ret[0], msg=ret[1], platform=platform_name, item_id=item_id, uid=uid).print()
     except Exception as e:
         logger.error(e)
         logger.error("Traceback:\n%s", traceback.format_exc())

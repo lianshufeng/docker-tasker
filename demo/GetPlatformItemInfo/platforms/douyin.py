@@ -132,7 +132,7 @@ class DouyinPlatformAction(PlatformAction):
     def type(self):
         return "douyin"
 
-    async def send_message(self, proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> [bool, str]:
+    async def send_message(self, proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> list[bool| str]:
         from .send_messages.douyin_send_message import douyin_send_message
         return await douyin_send_message(proxy=proxy, cookies=cookies, uid=uid, message=message, *args, **kwargs)
 

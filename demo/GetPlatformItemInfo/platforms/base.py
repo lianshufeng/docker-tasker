@@ -188,12 +188,12 @@ class PlatformAction(BaseModel):
         pass
 
     # 获取作者的作品
-    async def send_message(self, proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> [bool, str]:
+    async def send_message(self, proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> list[bool | str]:
         pass
 
     # 回复私信
-    async def reply_message(self, proxy: str, cookies: str, ai_url: str, max_chat_count: int,no_chat_timeout: int, *args, **kwargs) -> [bool,
-                                                                                                                   str]:
+    async def reply_message(self, proxy: str, cookies: str, ai_url: str, max_chat_count: int, no_chat_timeout: int,
+                            *args, **kwargs) -> [bool, str]:
         pass
 
     # 取出平台类型
