@@ -160,6 +160,13 @@ async def check_send_message_state(page: Page) -> list[bool | str]:
     else:
         error_handle = await msg_items.nth(div_count - 1).element_handle(timeout=1000)
         msg_error_text: str = (await error_handle.inner_text()).strip()
+
+        # 判断是不是有其失败的提示
+        error_tips = page.locator('//*[@id="messageContent"]/div/div[3]/div[3]')
+        error_tips_count = await error_tips.count()
+        if error_tips_count > 0:
+            msg_error_text+="\n"+ (await error_tips.inner_text()).strip()
+
         return [False, msg_error_text]  # 如果只有一个则说明大概率是发送成功了
 
 
