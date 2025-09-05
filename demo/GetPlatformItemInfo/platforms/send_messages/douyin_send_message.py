@@ -315,15 +315,43 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
 
         # 设置 cookies
         if cookies:
-            cookie_list = [
-                {
-                    'name': k,
-                    'value': v,
-                    'domain': '.douyin.com',  # 设置为整个主域
-                    'path': '/'  # 通常需要设置 path
-                }
-                for k, v in (item.strip().split('=', 1) for item in cookies.split(';') if '=' in item)
-            ]
+            # 定义需要忽略的字段（冗余/高风险/埋点相关）
+            exclude_keys={
+                "__ac_signature",
+                "gd_random",
+                "sdk_source_info",
+                "bit_env",
+                "gulu_source_res",
+                "passport_auth_mix_state",
+                "__security_mc_1_s_sdk_sign_data_key_web_protect",
+                "__security_mc_1_s_sdk_crypt_sdk",
+                "__security_mc_1_s_sdk_cert_key",
+                "__security_server_data_status",
+                "biz_trace_id",
+                "ttwid",
+                "odin_tt",
+                "FOLLOW_NUMBER_YELLOW_POINT_INFO",
+                "FOLLOW_LIVE_POINT_INFO",
+                "WallpaperGuide",
+                "volume_info",
+                "download_guide",
+                "EnhanceDownloadGuide"
+            }
+
+            cookie_list = []
+            for item in cookies.split(";"):
+                if "=" not in item:
+                    continue
+                k, v = item.strip().split("=", 1)
+                if k in exclude_keys:
+                    continue
+                cookie_list.append({
+                    "name": k,
+                    "value": v,
+                    "domain": ".douyin.com",  # 设置为整个主域
+                    "path": "/"  # 通常需要设置 path
+                })
+
             await context.add_cookies(cookie_list)
 
         try:
