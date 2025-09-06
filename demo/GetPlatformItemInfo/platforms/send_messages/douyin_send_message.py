@@ -9,7 +9,9 @@ import sys
 import time
 import traceback
 
+from playwright._impl._api_structures import SetCookieParam
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext, JSHandle
+from pywebio.platform import page
 
 from ..util.image_utils import find_and_click_image
 
@@ -33,6 +35,62 @@ PLUGIN_LIB = [
     {"name": "Widevine Content Decryption Module", "filename": "widevinecdmadapter.dll",
      "description": "Enables Widevine licenses for playback of HTML audio/video content."},
     {"name": "Shockwave Flash", "filename": "pepflashplayer.dll", "description": "Shockwave Flash 32.0 r0"}
+]
+
+# 需要排除的cookies
+exclude_cookies_keys = [
+    # （完全保留）
+    {
+    },
+    # （轻量排除）
+    {
+        "gd_random",
+        "sdk_source_info"
+    },
+    # （中等排除）
+    {
+        "gd_random",
+        "sdk_source_info",
+        "bit_env",
+        "gulu_source_res",
+        "passport_auth_mix_state"
+    },
+    # （偏激进排除）
+    {
+        "gd_random",
+        "sdk_source_info",
+        "bit_env",
+        "gulu_source_res",
+        "passport_auth_mix_state",
+        "FOLLOW_NUMBER_YELLOW_POINT_INFO",
+        "FOLLOW_LIVE_POINT_INFO",
+        "WallpaperGuide",
+        "volume_info",
+        "download_guide",
+        "EnhanceDownloadGuide"
+    },
+    # （非常激进排除）
+    {
+        "gd_random",
+        "sdk_source_info",
+        "bit_env",
+        "gulu_source_res",
+        "passport_auth_mix_state",
+        "__ac_signature",
+        "biz_trace_id",
+        "ttwid",
+        "odin_tt",
+        "__security_mc_1_s_sdk_sign_data_key_web_protect",
+        "__security_mc_1_s_sdk_crypt_sdk",
+        "__security_mc_1_s_sdk_cert_key",
+        "__security_server_data_status",
+        "FOLLOW_NUMBER_YELLOW_POINT_INFO",
+        "FOLLOW_LIVE_POINT_INFO",
+        "WallpaperGuide",
+        "volume_info",
+        "download_guide",
+        "EnhanceDownloadGuide"
+    }
 ]
 
 
@@ -165,29 +223,50 @@ async def check_send_message_state(page: Page) -> list[bool | str]:
         error_tips = page.locator('//*[@id="messageContent"]/div/div[3]/div[3]')
         error_tips_count = await error_tips.count()
         if error_tips_count > 0:
-            msg_error_text+="\n"+ (await error_tips.inner_text()).strip()
+            msg_error_text += "\n" + (await error_tips.inner_text()).strip()
 
         return [False, msg_error_text]  # 如果只有一个则说明大概率是发送成功了
 
 
-async def run_work(context: BrowserContext, uid: str, message: str) -> list[bool | str]:
-    # 首页
-    page = await context.new_page()
+# 设置上下文cookies
+async def set_context_cookies(context: BrowserContext, page: Page, cookies: str, try_index: int):
+    await reset_page_cookies(context=context, cookies=cookies, exclude_cookies_index=try_index)
 
-    # 设置分辨率
-    # await page.set_viewport_size({'width': width, 'height': height})
-
-    # 打开首页
     await page.goto("https://www.baidu.com")
     await asyncio.sleep(0.2)
     await page.goto(douyin_page_home)  # 抖音主页
 
-    # 点击我的
-    # user_self = await page.locator('.tab-user_self').element_handle(timeout=10000)
-    # await user_self.click()
     await asyncio.sleep(random.randint(1500, 3000) / 1000)
     await page.reload()
     await asyncio.sleep(random.randint(1500, 4000) / 1000)
+
+    isLogin, err = await check_user_login(page)
+    if isLogin is True:
+        return
+
+    # 继续尝试
+    if try_index < len(exclude_cookies_keys):
+        await set_context_cookies(context=context, page=page, cookies=cookies, try_index=try_index + 1)
+
+
+async def run_work(context: BrowserContext, cookies: str, uid: str, message: str) -> list[bool | str]:
+    # 首页
+    page = await context.new_page()
+
+    # 打开首页
+    # await page.goto("https://www.baidu.com")
+    # await asyncio.sleep(0.2)
+    # await page.goto(douyin_page_home)  # 抖音主页
+
+    # 点击我的
+    # user_self = await page.locator('.tab-user_self').element_handle(timeout=10000)
+    # await user_self.click()
+    # await asyncio.sleep(random.randint(1500, 3000) / 1000)
+    # await page.reload()
+    # await asyncio.sleep(random.randint(1500, 4000) / 1000)
+
+    # 尝试多种策略设置cookies
+    await set_context_cookies(context=context, page=page, cookies=cookies, try_index=0)
 
     # 检查是否登录状态
     isLogin, err = await check_user_login(page)
@@ -288,6 +367,37 @@ def getChromeExecutablePath() -> list[str]:
     return list(dict.fromkeys(chrome_paths))
 
 
+async def reset_page_cookies(context: BrowserContext, cookies: str, exclude_cookies_index: int):
+    domain: str = '.douyin.com'
+    path: str = '/'
+    if cookies is not None:
+
+        # 清除所有的cookies
+        for item in cookies.split(";"):
+            if "=" not in item:
+                continue
+            k, v = item.strip().split("=", 1)
+            await context.clear_cookies(name=k, domain=domain, path=path)
+
+        # 添加cookies
+        print("优化 cookies 策略：" + str(exclude_cookies_index))
+        exclude_keys: set[str] = exclude_cookies_keys[exclude_cookies_index]  # 取出过滤的key
+        cookie_list: list[SetCookieParam] = []
+        for item in cookies.split(";"):
+            if "=" not in item:
+                continue
+            k, v = item.strip().split("=", 1)
+            if k in exclude_keys:
+                continue
+            cookie_list.append(SetCookieParam(
+                name=k,
+                value=v,
+                domain=domain,
+                path=path,
+            ))
+        await context.add_cookies(cookie_list)
+
+
 # 抖音发送消息
 async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, *args, **kwargs) -> list[bool | str]:
     chrome: list = getChromeExecutablePath()
@@ -312,50 +422,8 @@ async def douyin_send_message(proxy: str, cookies: str, uid: str, message: str, 
             args=args_list,
         )
         context: BrowserContext = await make_browser_context(browser)
-
-        # 设置 cookies
-        if cookies:
-            # 定义需要忽略的字段（冗余/高风险/埋点相关）
-            exclude_keys={
-                "__ac_signature",
-                "gd_random",
-                "sdk_source_info",
-                "bit_env",
-                "gulu_source_res",
-                "passport_auth_mix_state",
-                "__security_mc_1_s_sdk_sign_data_key_web_protect",
-                "__security_mc_1_s_sdk_crypt_sdk",
-                "__security_mc_1_s_sdk_cert_key",
-                "__security_server_data_status",
-                "biz_trace_id",
-                "ttwid",
-                "odin_tt",
-                "FOLLOW_NUMBER_YELLOW_POINT_INFO",
-                "FOLLOW_LIVE_POINT_INFO",
-                "WallpaperGuide",
-                "volume_info",
-                "download_guide",
-                "EnhanceDownloadGuide"
-            }
-
-            cookie_list = []
-            for item in cookies.split(";"):
-                if "=" not in item:
-                    continue
-                k, v = item.strip().split("=", 1)
-                if k in exclude_keys:
-                    continue
-                cookie_list.append({
-                    "name": k,
-                    "value": v,
-                    "domain": ".douyin.com",  # 设置为整个主域
-                    "path": "/"  # 通常需要设置 path
-                })
-
-            await context.add_cookies(cookie_list)
-
         try:
-            return await run_work(context=context, uid=uid, message=message)
+            return await run_work(context=context, cookies=cookies, uid=uid, message=message)
         except Exception as e:
             logger.error(e)
             logger.error("Traceback:\n%s", traceback.format_exc())
